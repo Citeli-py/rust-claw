@@ -8,7 +8,7 @@ use serde::Deserialize;
 const PINCHTAB_URL: &str = "http://localhost:9867";
 
 #[derive(Deserialize, Debug)]
-pub struct PinchTabStartInstaceResponse {
+pub struct PinchTabInstaceResponse {
     id: String,
     profileId: String,
     profileName: String,
@@ -27,9 +27,29 @@ pub struct PinchTabOpenTabResponse {
 
 impl PinchTabOpenTabResponse {
 
-    fn to_string(self, ) -> String {
+    pub fn to_string(&self, ) -> String {
         return String::from(format!("tabId: {}, title: {}, url: {}", self.tabId, self.title, self.url));
     }
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct PinchTabTabResponse {
+    pub id: String,
+    pub r#type: String,
+    pub url: String,
+    pub title: String,
+}
+
+impl PinchTabTabResponse {
+
+    pub fn to_string(&self, ) -> String {
+        return String::from(format!("id: {}, instanceId: {}, title: {}, url: {}", self.id, self.r#type, self.title, self.url));
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct TabsResponse {
+    pub tabs: Vec<PinchTabTabResponse>,
 }
 
 #[derive(Clone)]
@@ -53,7 +73,7 @@ impl PinchTab {
             .await?;
 
 
-        let json_resp: PinchTabStartInstaceResponse = serde_json::from_str(&resp).unwrap();
+        let json_resp: PinchTabInstaceResponse = serde_json::from_str(&resp).unwrap();
 
         println!("Instance created: {:#?}", json_resp);
 
@@ -61,6 +81,14 @@ impl PinchTab {
             client,
             instance_id: json_resp.id,
         })
+    }
+
+    async fn get_instance( ) -> Result<PinchTabInstaceResponse> {
+        todo!()
+    }
+
+    async fn wait_until_running(instance_id: String) {
+        todo!()
     }
 
     async fn post_request(
@@ -107,6 +135,19 @@ impl PinchTab {
 
         let resp: PinchTabOpenTabResponse = serde_json::from_str(&resp).unwrap();
         Ok(resp)
+    }
+
+    pub async fn get_tabs(&self, ) -> Result<Vec<PinchTabTabResponse>> {
+        
+        let resp = self.get_request(
+            &format!("instances/{}/tabs", self.instance_id)
+        ).await?;
+
+        println!("{}", resp);
+
+        let tabs: TabsResponse = serde_json::from_str(&resp).unwrap();
+
+        Ok(tabs.tabs)
     }
 
     pub async fn navigate(&self, tab_id: String, url: String) -> Result<String> {
