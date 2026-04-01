@@ -145,3 +145,21 @@ async fn test_close_tab() {
     assert!(result.is_ok());
     let _ = browser.close().await;
 }
+
+#[tokio::test]
+async fn test_list_tabs() {
+
+    let browser = PinchTab::new().await.unwrap();
+
+    //tokio::time::sleep(Duration::from_secs(2)).await;
+
+    let res = browser.get_tabs().await;
+    assert!(res.is_ok());
+
+    let tabs = res.unwrap();
+
+    assert!(tabs.len() > 0);
+    assert!(tabs[0].id != String::new());
+
+    let _ = browser.close().await;
+}
