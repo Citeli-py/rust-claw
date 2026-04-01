@@ -5,9 +5,6 @@ mod agents;
 
 use ai_agent::{AgentFactory, ModelProvider};
 
-//mod multi_provider_agent;
-//use crate::multi_provider_agent::{MultiProviderAgent};
-
 mod pinchtab;
 
 const GEMINI_MODEL: &str = "gemini-2.5-flash-lite";
@@ -39,6 +36,11 @@ async fn main() -> anyhow::Result<()> {
         let mut question = String::new();
         io::stdin().read_line(&mut question)?;
         let question = question.trim();
+
+        if question.contains("/history") {
+            println!("{:?}", agent.history());
+            continue;
+        }
 
         let resposta = agent.stream(question).await;
 
