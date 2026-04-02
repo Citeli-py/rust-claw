@@ -52,9 +52,8 @@ pub struct WebBrowserTool {
 impl WebBrowserTool {
 
     pub async fn new(browser: PinchTab) -> Self {
-        tokio::time::sleep(Duration::from_secs(2)).await;
-        let res = browser.open_tab(None).await.unwrap();
-        WebBrowserTool { browser, tab_id: res.tabId }
+        let tabs = browser.get_tabs().await.unwrap();
+        WebBrowserTool { browser, tab_id: tabs[0].id.clone() }
     }
 }
 
@@ -85,7 +84,6 @@ impl Tool for WebBrowserTool {
                             "text",
                             "click",
                             "fill",
-                            "screenshot",
                             "pdf",
                         ]
                     },
@@ -159,14 +157,6 @@ impl Tool for WebBrowserTool {
 
                 self.browser
                     .fill(self.tab_id.clone(), element, text)
-                    .await
-                    .map_err(|_| WebBrowserError{msg: "Erro inesperado".to_string()})?
-            }
-
-            "screenshot" => {
-
-                self.browser
-                    .screenshot(self.tab_id.clone())
                     .await
                     .map_err(|_| WebBrowserError{msg: "Erro inesperado".to_string()})?
             }

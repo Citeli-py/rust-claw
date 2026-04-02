@@ -29,18 +29,20 @@ async fn test_navigation() {
 
     let browser = PinchTab::new().await.unwrap();
 
-    let tab = browser
-        .open_tab(Some("about:blank".to_string()))
-        .await
-        .unwrap();
+    let tabs = browser.get_tabs().await.unwrap();
 
-    println!("{:?}", tab);
+    let url = "https://www.google.com/".to_string();
 
     let result = browser
-        .navigate(tab.tabId, "https://www.google.com/".to_string())
+        .navigate(tabs[0].id.clone(), url.clone())
         .await;
 
     assert!(result.is_ok());
+
+    let tabs = browser.get_tabs().await.unwrap();
+
+    assert_eq!(tabs[0].url.clone(), url.clone());
+
     let _ = browser.close().await;
 }
 
@@ -48,8 +50,6 @@ async fn test_navigation() {
 async fn test_navigation_without_tab_id() {
 
     let browser = PinchTab::new().await.unwrap();
-
-    tokio::time::sleep(Duration::from_secs(5)).await;
 
     let result = browser
         .navigate("".to_string(), "https://www.google.com/".to_string())
@@ -150,8 +150,6 @@ async fn test_close_tab() {
 async fn test_list_tabs() {
 
     let browser = PinchTab::new().await.unwrap();
-
-    //tokio::time::sleep(Duration::from_secs(2)).await;
 
     let res = browser.get_tabs().await;
     assert!(res.is_ok());

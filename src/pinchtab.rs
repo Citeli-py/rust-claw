@@ -1,6 +1,7 @@
 use std::time::Duration;
 
-use anyhow::{Error, Result};
+use anyhow::{Error, Ok, Result};
+use anyhow::{Context, anyhow};
 use reqwest::Client;
 use serde_json::{Value, json};
 use serde::Deserialize;
@@ -77,18 +78,37 @@ impl PinchTab {
 
         println!("Instance created: {:#?}", json_resp);
 
-        Ok(PinchTab {
+        let pinchtab = PinchTab {
             client,
             instance_id: json_resp.id,
-        })
+        };
+
+        pinchtab.wait_until_running().await?;
+
+        Ok(pinchtab)
     }
 
-    async fn get_instance( ) -> Result<PinchTabInstaceResponse> {
-        todo!()
-    }
+    async fn wait_until_running(&self) -> Result<u8> {
+        const MAX_TRIES: u8 = 30;
+        const SLEEP_DURATION: Duration = Duration::from_millis(400);
 
-    async fn wait_until_running(instance_id: String) {
-        todo!()
+        for attempt in 1..=MAX_TRIES {
+
+            let instance = self.get_instance().await
+                .context("Falha ao buscar status da instância")?;
+
+            if instance.status.contains("running") {
+                return Ok(attempt);
+            }
+
+            if attempt == MAX_TRIES {
+                return Err(anyhow!("Excedeu o limite de {} tentativas", MAX_TRIES));
+            }
+
+            tokio::time::sleep(SLEEP_DURATION).await;
+        }
+
+        Err(anyhow!("Erro inesperado no loop de espera"))
     }
 
     async fn post_request(
@@ -123,6 +143,16 @@ impl PinchTab {
         Ok(resp)
     }
 
+    pub async fn get_instance(&self, ) -> Result<PinchTabInstaceResponse> {
+        
+        let resp = self.get_request(
+            &format!("instances/{}", self.instance_id)
+        ).await?;
+
+        let instance_info: PinchTabInstaceResponse = serde_json::from_str(&resp)?;
+        Ok(instance_info)
+    }
+    
     pub async fn open_tab(&self, url: Option<String>) -> Result<PinchTabOpenTabResponse> {
 
         let url = url.unwrap_or("about:blank".to_string());
@@ -133,7 +163,7 @@ impl PinchTab {
         )
         .await?;
 
-        let resp: PinchTabOpenTabResponse = serde_json::from_str(&resp).unwrap();
+        let resp: PinchTabOpenTabResponse = serde_json::from_str(&resp)?;
         Ok(resp)
     }
 
@@ -142,8 +172,6 @@ impl PinchTab {
         let resp = self.get_request(
             &format!("instances/{}/tabs", self.instance_id)
         ).await?;
-
-        println!("{}", resp);
 
         let tabs: TabsResponse = serde_json::from_str(&resp).unwrap();
 
@@ -237,8 +265,6 @@ impl PinchTab {
             serde_json::json!({}),
         )
         .await?;
-
-        println!("{}", resp);
 
         Ok(())
     }
