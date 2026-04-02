@@ -48,8 +48,5 @@ async fn main() -> anyhow::Result<()> {
             eprintln!("failed to generate response: {e}");
             continue;
         }
-
-        // println!("AI> {}\n", resposta.unwrap());
-        //println!("{:?}", agent.history());
     }
 }
