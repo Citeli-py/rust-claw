@@ -7,7 +7,7 @@ use futures::StreamExt;
 use std::io;
 use std::io::Write;
 
-use crate::{agents::agent, pinchtab::PinchTab};
+use crate::{agents::agent, tools::PinchTab};
 use crate::tools::{TerminalTool, WebBrowserTool};
 
 use crate::agents::PRE_PROMPT;

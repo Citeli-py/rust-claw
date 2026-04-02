@@ -5,8 +5,6 @@ mod agents;
 
 use ai_agent::{AgentFactory, ModelProvider};
 
-mod pinchtab;
-
 const GEMINI_MODEL: &str = "gemini-2.5-flash-lite";
 const OLLAMA_MODEL: &str = "qwen3.5:2b";
 

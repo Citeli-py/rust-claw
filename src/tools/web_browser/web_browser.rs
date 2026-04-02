@@ -6,7 +6,7 @@ use rig::tool::Tool;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::pinchtab::{PinchTab, PinchTabOpenTabResponse};
+use crate::tools::web_browser::{PinchTab, PinchTabOpenTabResponse};
 
 #[derive(Debug)]
 pub struct WebBrowserError {
