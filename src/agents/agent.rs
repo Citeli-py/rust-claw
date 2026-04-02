@@ -1,4 +1,4 @@
-use anyhow::{Ok, Result};
+use anyhow::{Result};
 use async_trait::async_trait;
 use rig::{agent::{Agent, AgentBuilder, PromptHook, stream_to_stdout}, client::builder, completion::{Chat, CompletionModel, GetTokenUsage}, message::{Message, ToolResult}};
 use rig::streaming::StreamingChat;
@@ -6,6 +6,8 @@ use rig::streaming::StreamedAssistantContent;
 use futures::StreamExt;
 use std::io;
 use std::io::Write;
+
+use std::result::Result::Ok;
 
 use crate::{agents::agent, tools::PinchTab};
 use crate::tools::{TerminalTool, WebBrowserTool};
@@ -98,8 +100,7 @@ where
 
     let builder = builder.tool(TerminalTool);
 
-    let builder = if let std::result::Result::Ok(browser) = PinchTab::new().await {
-        let web_tool = WebBrowserTool::new(browser).await;
+    let builder = if let Ok(web_tool) = WebBrowserTool::new().await {
         builder.tool(web_tool)
     } else {
         println!("⚠️ Não foi possível iniciar o PinchTab, seguindo sem browser tool");
