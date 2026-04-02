@@ -1,4 +1,6 @@
-use std::time::Duration;
+use std::{pin::Pin, time::Duration};
+
+use std::result::{Result};
 
 use rig::completion::ToolDefinition;
 use rig::tool::Tool;
@@ -51,9 +53,14 @@ pub struct WebBrowserTool {
 
 impl WebBrowserTool {
 
-    pub async fn new(browser: PinchTab) -> Self {
+    pub async fn new() -> Result<WebBrowserTool, WebBrowserError> {
+        let browser = match PinchTab::new().await {
+            Err(_) => return Err(WebBrowserError{msg: "Falha ao criar o pinchtab!".to_string()}),
+            Ok(browser) => browser
+        };
+
         let tabs = browser.get_tabs().await.unwrap();
-        WebBrowserTool { browser, tab_id: tabs[0].id.clone() }
+        Ok(WebBrowserTool { browser, tab_id: tabs[0].id.clone() })
     }
 }
 
