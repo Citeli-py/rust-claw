@@ -1,6 +1,6 @@
 use ai_agent::AgentFactory;
 use ai_agent::ModelProvider;
-use ai_agent::Config;
+use ai_agent::AgentConfig;
 
 #[tokio::test]
 async fn test_create_ollama_agent() {
