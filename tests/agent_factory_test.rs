@@ -1,6 +1,8 @@
 use ai_agent::AgentFactory;
 use ai_agent::ModelProvider;
 use ai_agent::AgentConfig;
+use dotenvy;
+use dotenvy::dotenv;
 
 #[tokio::test]
 async fn test_create_ollama_agent() {
@@ -9,6 +11,7 @@ async fn test_create_ollama_agent() {
         ModelProvider::Ollama, 
         "qwen3.5:0.8b", 
         "", 
+        "",
         Vec::new()
     ).await;
 
@@ -18,12 +21,14 @@ async fn test_create_ollama_agent() {
 
 #[tokio::test]
 async fn test_create_gemini_agent() {
-    let config = Config::from_env();
+    dotenv().ok();
 
+    let api_key = std::env::var("GEMINI_API_KEY").unwrap();
     let agent = AgentFactory::create_agent(
         ModelProvider::Gemini, 
         "gemini-2.5-flash-lite", 
-        &config.gemini_api_key, 
+        &api_key, 
+        "",
         Vec::new()
     ).await;
 
@@ -32,13 +37,14 @@ async fn test_create_gemini_agent() {
 
 #[tokio::test]
 async fn test_response_from_gemini() {
-
-   let config = Config::from_env();
+    dotenv().ok();
+    let api_key = std::env::var("GEMINI_API_KEY").unwrap();
     
     let result_agent = AgentFactory::create_agent(
         ModelProvider::Gemini, 
         "gemini-2.5-flash-lite", 
-        &config.gemini_api_key, 
+        &api_key, 
+        "",
         Vec::new()
     ).await;
 
@@ -50,11 +56,14 @@ async fn test_response_from_gemini() {
         }
     };
 
-    let result = agent.chat("Seja breve, fale apenas oi").await;
+    let result = agent.chat("Be quick, say \"TEST\"").await;
 
     match result {
-        Ok(resp) =>  assert!(resp.to_lowercase().contains("oi")),
-        Err(_) => panic!()
+        Ok(resp) =>  assert!(resp.to_lowercase().contains("test")),
+        Err(e) => {
+            eprintln!("Error trying to generate response with gemini:\n\t{e}");
+            panic!()
+        }
     }
 
 }
@@ -65,8 +74,9 @@ async fn test_response_from_ollama() {
 
     let result_agent = AgentFactory::create_agent(
         ModelProvider::Ollama, 
-        "qwen3.5:0.8b", 
+        "qwen3.5:2b", 
         "", 
+        "",
         Vec::new()
     ).await;
 
@@ -78,11 +88,17 @@ async fn test_response_from_ollama() {
         }
     };
 
-    let result = agent.chat("Seja breve, fale apenas oi").await;
+    let result = agent.chat("Be quick, say \"TEST\"").await;
 
     match result {
-        Ok(resp) =>  assert!(resp.to_lowercase().contains("oi")),
-        Err(_) => panic!()
+        Ok(resp) =>  {
+            println!("Response from ollama: {}", resp);
+            assert!(resp.to_lowercase().contains("test"))
+        }    
+        Err(e) => {
+            eprintln!("Error trying to generate response with ollama:\n\t{e}");
+            panic!()
+        }
     }
 
 }
