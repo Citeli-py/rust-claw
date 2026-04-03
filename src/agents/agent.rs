@@ -1,33 +1,15 @@
 use anyhow::{Result};
 use async_trait::async_trait;
-use rig::{agent::{Agent, AgentBuilder, PromptHook, stream_to_stdout}, client::builder, completion::{Chat, CompletionModel, GetTokenUsage}, message::{Message, ToolResult}};
+use rig::{agent::{Agent, AgentBuilder, PromptHook}, completion::{Chat, CompletionModel}, message::{Message}};
 use rig::streaming::StreamingChat;
 use rig::streaming::StreamedAssistantContent;
 use futures::StreamExt;
 use std::io;
 use std::io::Write;
+use crate::agents::AgentInterface;
 
 use std::result::Result::Ok;
-
-use crate::{agents::agent, tools::PinchTab};
 use crate::tools::{TerminalTool, WebBrowserTool};
-
-use crate::agents::PRE_PROMPT;
-
-
-#[async_trait]
-pub trait AgentInterface: Send {
-
-    async fn chat(&mut self, input: &str) -> Result<String>;
-
-    //retorna a stream pelo stdout
-    async fn stream(&mut self, input: &str) -> Result<()>;
-
-    fn history(&self,) -> &[Message];
-
-    fn clean_history(&mut self);
-}
-
 
 pub(super) struct AgentWrapper<M, P>
 where 
@@ -88,14 +70,14 @@ where
 
 }
 
-pub(super) async fn build_agent<M, P>(builder: AgentBuilder<M, P>, history: Vec<Message>) -> Box<dyn AgentInterface> 
+pub(super) async fn build_agent<M, P>(builder: AgentBuilder<M, P>, pre_prompt: &str, history: Vec<Message>) -> Box<dyn AgentInterface> 
 where 
     M: CompletionModel + Send + Sync + 'static,
     P: PromptHook<M> + Send + Sync + 'static,
 {
 
     let builder = builder
-    .preamble(PRE_PROMPT)
+    .preamble(pre_prompt)
     .default_max_turns(10);
 
     let builder = builder.tool(TerminalTool);
