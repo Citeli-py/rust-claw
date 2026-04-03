@@ -35,3 +35,4 @@ Executa comandos no terminal Linux.
 
 - [`Cargo.toml`](./Cargo.toml) - Configuração e dependências
 - [`src/main.rs`](./src/main.rs) - Lógica do agente principal
+Finished  profile [unoptimized + debuginfo] target(s) in 0.31s

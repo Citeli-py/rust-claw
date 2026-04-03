@@ -1,6 +1,4 @@
-use std::io::{self, Write};
 
-use ai_agent::{AgentFactory, ModelProvider};
 use ai_agent::cli::{chat::chat, create_agent::create_agent, load_agent::load_agent};
 
 const GEMINI_MODEL: &str = "gemini-2.5-flash-lite";
