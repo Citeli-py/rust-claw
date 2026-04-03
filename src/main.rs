@@ -1,8 +1,5 @@
 
-use ai_agent::cli::{chat::chat, create_agent::create_agent, load_agent::load_agent};
-
-const GEMINI_MODEL: &str = "gemini-2.5-flash-lite";
-const OLLAMA_MODEL: &str = "qwen3.5:2b";
+use ai_agent::cli::{chat::chat, create_agent::create_agent, load_agent::load_agent, run_agent::run_agent};
 
 use dotenvy::dotenv;
 
@@ -41,8 +38,6 @@ async fn main() -> anyhow::Result<()> {
 
     dotenv()?;
 
-    println!("Model loaded!");
-
     let cli = Cli::parse();
 
     match cli.command {
@@ -52,6 +47,7 @@ async fn main() -> anyhow::Result<()> {
 
         Commands::Run { nome, mensagem } => {
             println!("Rodando {} com mensagem: {}", nome, mensagem);
+            run_agent(&nome, &mensagem).await;
         }
 
         Commands::Chat { nome } => {

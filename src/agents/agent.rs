@@ -78,7 +78,7 @@ where
 
     let builder = builder
     .preamble(pre_prompt)
-    .default_max_turns(10);
+    .default_max_turns(20);
 
     let builder = builder.tool(TerminalTool);
 
@@ -93,8 +93,6 @@ where
     Box::new(AgentWrapper::new(agent, history))
 }
 
-
-use rig::agent::MultiTurnStreamItem;
 use rig::streaming::{ StreamedUserContent};
 
 fn handle_chunk<R>(
