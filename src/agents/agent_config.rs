@@ -1,6 +1,7 @@
 use serde::{Serialize, Deserialize};
 use anyhow::{Result, Context};
 use std::fs;
+use std::path::Path;
 
 use crate::ModelProvider;
 
@@ -12,6 +13,7 @@ pub struct AgentConfigJson {
 }
 
 pub struct AgentConfig {
+    pub name: String,
     pub provider: ModelProvider,
     pub model: String,
     pub api_key: String,
@@ -41,7 +43,14 @@ impl AgentConfig {
         let pre_prompt = fs::read_to_string(&pre_prompt_path)
             .with_context(|| format!("Erro ao ler arquivo: {}", pre_prompt_path))?;
 
+        let name = Path::new(path)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .context("Erro ao extrair nome do agente a partir do path")?
+        .to_string();
+
         let agent_config = AgentConfig{
+            name,
             provider: AgentConfig::match_provider(&config.provider).unwrap(),
             model: config.model,
             api_key: config.api_key,
@@ -49,5 +58,9 @@ impl AgentConfig {
         };
 
         Ok(agent_config)
+    }
+
+    pub fn to_string(&self) -> String {
+        String::from(format!("{}\n\tprovider: {}\n\tmodel: {}\n", self.name, self.provider.to_string(), self.model))
     }
 }
