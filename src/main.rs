@@ -1,20 +1,24 @@
 
-use ai_agent::cli::{chat::chat, create_agent::create_agent, load_agent::load_agent, run_agent::run_agent};
-
-use dotenvy::dotenv;
+use ai_agent::cli::{
+    chat::chat, 
+    create_agent::create_agent, 
+    load_agent::load_agent, 
+    run_agent::run_agent,
+    list_agents::list_agents,
+};
 
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "rustclaw")]
 #[command(about = "CLI para automação com agentes", long_about = None)]
-struct Cli {
+pub struct Cli {
     #[command(subcommand)]
     command: Commands,
 }
 
 #[derive(Subcommand)]
-enum Commands {
+pub enum Commands {
     /// Cria um novo projeto
     Create {
         nome: String,
@@ -30,15 +34,15 @@ enum Commands {
     Chat {
         nome: String,
     },
-}
 
+    // Lista os seus agentes
+    List {},
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
 
-    dotenv()?;
-
-    let cli = Cli::parse();
+    let cli = Cli::try_parse()?;
 
     match cli.command {
         Commands::Create { nome } => {
@@ -54,6 +58,10 @@ async fn main() -> anyhow::Result<()> {
             println!("Abrindo chat para: {}", nome);
             let mut agent = load_agent(&nome).await;
             chat(&mut agent).await?;
+        }
+
+        Commands::List{} => {
+            list_agents();
         }
     }
 
