@@ -6,5 +6,4 @@ pub use tools::PinchTab;
 pub use agents::agent_factory::{AgentFactory, ModelProvider};
 pub use agents::agent_config::{AgentConfig, AgentConfigJson};
 
-pub use cli::create_agent::create_agent;
-pub use cli::chat::chat;
+pub use cli::*;
