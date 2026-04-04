@@ -61,6 +61,7 @@ pub fn create_agent(name: &str) {
     let model = ask("Model: ");
 
     let config = AgentConfig {
+        name: name.to_string(),
         provider,
         model,
         api_key: String::new(),
