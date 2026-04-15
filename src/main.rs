@@ -1,50 +1,70 @@
-use std::io::{self, Write};
 
-mod tools;
-mod agents;
+use ai_agent::cli::{
+    chat::chat, 
+    create_agent::create_agent, 
+    load_agent::load_agent, 
+    run_agent::run_agent,
+    list_agents::list_agents,
+};
 
-use ai_agent::{AgentFactory, ModelProvider};
+use clap::{Parser, Subcommand};
 
-const GEMINI_MODEL: &str = "gemini-2.5-flash-lite";
-const OLLAMA_MODEL: &str = "qwen3.5:2b";
+#[derive(Parser)]
+#[command(name = "rustclaw")]
+#[command(about = "CLI para automação com agentes", long_about = None)]
+pub struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
 
-use dotenvy::dotenv;
+#[derive(Subcommand)]
+pub enum Commands {
+    /// Cria um novo projeto
+    Create {
+        nome: String,
+    },
+
+    /// Executa um comando no projeto
+    Run {
+        nome: String,
+        mensagem: String,
+    },
+
+    /// Abre chat interativo
+    Chat {
+        nome: String,
+    },
+
+    // Lista os seus agentes
+    List {},
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
 
-    dotenv()?;
-    let config = ai_agent::Config::from_env();
-    println!("Loading model...");
+    let cli = Cli::try_parse()?;
 
-    let mut agent = AgentFactory::create_agent(
-        ModelProvider::Ollama,
-        OLLAMA_MODEL, 
-        &config.gemini_api_key, 
-        Vec::new()
-    ).await?;
-
-    println!("Model loaded!");
-
-
-    loop {
-        print!("> ");
-        io::stdout().flush()?;
-
-        let mut question = String::new();
-        io::stdin().read_line(&mut question)?;
-        let question = question.trim();
-
-        if question.contains("/history") {
-            println!("{:?}", agent.history());
-            continue;
+    match cli.command {
+        Commands::Create { nome } => {
+            create_agent(&nome);
         }
 
-        let resposta = agent.stream(question).await;
+        Commands::Run { nome, mensagem } => {
+            println!("Rodando {} com mensagem: {}", nome, mensagem);
+            run_agent(&nome, &mensagem).await;
+        }
 
-        if let Err(e) = resposta {
-            eprintln!("failed to generate response: {e}");
-            continue;
+        Commands::Chat { nome } => {
+            println!("Abrindo chat para: {}", nome);
+            let mut agent = load_agent(&nome).await;
+            chat(&mut agent).await?;
+        }
+
+        Commands::List{} => {
+            list_agents();
         }
     }
+
+    Ok(())
+
 }

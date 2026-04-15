@@ -13,4 +13,5 @@ futures = "0.3.32"
 reqwest = "0.13.2"
 async-trait = "0.1.89"
 dotenvy = "0.15.7"
+clap = { version = "4.6.0", features = ["derive"] }
 
