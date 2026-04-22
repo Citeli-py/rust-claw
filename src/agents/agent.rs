@@ -137,7 +137,7 @@ fn handle_chunk<R>(
                     println!("{:?}", reason.display_text());
                 }
 
-                StreamedAssistantContent::ReasoningDelta { .. } => println!("ReasoningDelta event"),
+                StreamedAssistantContent::ReasoningDelta { id, reasoning } => println!("ReasoningDelta event\n{}\nEnd reasoning", reasoning),
 
                 StreamedAssistantContent::Final(_) => {}
             }
