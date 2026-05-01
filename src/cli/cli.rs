@@ -1,31 +1,40 @@
 use clap::{Parser, Subcommand};
 
-#[derive(Parser)]
-#[command(name = "rustclaw")]
-#[command(about = "CLI para automação com agentes", long_about = None)]
+#[derive(Parser, Debug)]
+#[command(
+    name = "rustclaw",
+    version,
+    about = "CLI for agent-based automation",
+    long_about = "Rustclaw is a CLI tool to create, manage and interact with AI agents."
+)]
 pub struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    pub command: Commands,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Cria um novo projeto
+    /// Create a new agent project
     Create {
-        nome: String,
+        /// Name of the agent
+        name: String,
     },
 
-    /// Executa um comando no projeto
+    /// Run a one-time command with an agent
     Run {
-        nome: String,
-        mensagem: String,
+        /// Agent name
+        name: String,
+
+        /// Message to send to the agent
+        message: String,
     },
 
-    /// Abre chat interativo
+    /// Start an interactive chat session
     Chat {
-        nome: String,
+        /// Agent name
+        name: String,
     },
 
-    // Lista os seus agentes
+    /// List all available agents
     List,
 }
