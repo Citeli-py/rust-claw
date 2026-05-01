@@ -1,2 +1,2 @@
 pub mod terminal;
-pub use terminal::TerminalTool;
+pub use terminal::*;
