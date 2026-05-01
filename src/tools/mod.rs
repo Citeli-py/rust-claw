@@ -1,6 +1,4 @@
 pub mod terminal;
-pub mod web_browser;
+pub mod confirmed_tool;
 
-pub use terminal::TerminalTool;
-pub use web_browser::WebBrowserTool;
-pub use web_browser::{PinchTab};
+pub use terminal::*;
