@@ -1,11 +1,13 @@
 use std::io;
 use std::io::Write;
 use futures::{Stream, StreamExt};
+use rig::OneOrMany;
 
+use rig::message::{AssistantContent, Message, ToolCall};
 use rig::streaming::{ StreamedUserContent, StreamedAssistantContent};
 use rig::completion::{CompletionModel, GetTokenUsage};
 
-type DynStream<M> = std::pin::Pin<
+pub type DynStream<M> = std::pin::Pin<
     Box<
         dyn Stream<
                 Item = std::result::Result<
@@ -20,7 +22,7 @@ type DynStream<M> = std::pin::Pin<
 
 #[derive(Debug)]
 pub struct UserInterruptionError {
-    text: String
+    pub message: Message
 }
 
 impl std::fmt::Display for UserInterruptionError {
@@ -36,157 +38,182 @@ pub struct StreamHandler {}
 
 impl StreamHandler {
 
-    pub async fn handle_stream<M>(stream: &mut DynStream<M>) -> String 
+    pub async fn handle_stream<M>(stream: &mut DynStream<M>) -> Vec<Message>
     where 
         M: CompletionModel + 'static,
         M::StreamingResponse: GetTokenUsage,
-
     {
-
-        let mut output = String::new();
+        let mut messages = Vec::new();
+        let mut current_text = String::new();
 
         while let Some(chunk) = stream.next().await {
-            let chunk_result: std::result::Result<String, UserInterruptionError> = StreamHandler::handle_chunk(chunk.unwrap());
-            let is_interrupted = chunk_result.is_err();
-            let text = match chunk_result {
-                Ok(s) => s,
-                Err(e) => e.text
-            };
-
-            output.push_str(&text);
-
-            if is_interrupted {
-                break;
-            }
-        }
-
-        return output;
-    }
-
-    fn handle_chunk<R>(
-        chunk: rig::agent::MultiTurnStreamItem<R>,
-    ) -> anyhow::Result<String, UserInterruptionError> {
-
-        let mut response_text = String::new();
-
-        match chunk {
-
-            // 🧠 Tudo vem como StreamAssistantItem
-            rig::agent::MultiTurnStreamItem::StreamAssistantItem(assistant_content) => {
-                let assistant_content_message = StreamHandler::handle_assistant_item(assistant_content);
-                response_text.push_str(&assistant_content_message);
-                
-            }
-
-            rig::agent::MultiTurnStreamItem::StreamUserItem(user_content) => {
-                let user_content_message = StreamHandler::handle_user_content(user_content);
-
-                let is_error = user_content_message.is_err();
-
-                let text = match user_content_message {
-                    Ok(s) => s,
-                    Err(e) => e.text
-                };
-
-                println!("{}",text);
-                response_text.push_str(&text);
-
-                if is_error {
-                    return Err(UserInterruptionError { text: response_text});
+            let chunk = chunk.unwrap();
+            
+            match chunk {
+                rig::agent::MultiTurnStreamItem::StreamAssistantItem(item) => {
+                    Self::handle_assistant_item(item, &mut current_text, &mut messages);
                 }
 
-            }
-
-            rig::agent::MultiTurnStreamItem::FinalResponse(content) => {
-                let usage = content.usage();
-                println!("\n\n[input_tokens: {}, output_tokens: {}]", usage.input_tokens, usage.output_tokens);
-            }
-
-            _ => {}
-        }
-
-        Ok(response_text)
-    }
-
-
-    fn handle_user_content(user_content: StreamedUserContent) -> Result<String, UserInterruptionError>{
-
-        let mut response_text = String::new();
-
-        match user_content {
-            StreamedUserContent::ToolResult { tool_result, internal_call_id,} => {
-
-                let first = tool_result.content.first();
-                // junta first + rest
-                let mut items = vec![&first];
-                
-                let rest = tool_result.content.rest();
-                items.extend(rest.iter());
-                
-                let mut full_text = String::new();
-                for item in items {
-                    match item {
-                        rig::message::ToolResultContent::Text(t) => {
-                            full_text.push_str(&t.text);
+                rig::agent::MultiTurnStreamItem::StreamUserItem(user_item) => {
+                    match Self::handle_user_item(user_item, &mut current_text, &mut messages) {
+                        Ok(()) => {}
+                        Err(e) => {
+                            messages.push(e.message);
+                            break;
                         }
-                        _ => {}
                     }
                 }
 
-                response_text.push_str("\n[TOOL RAW OUTPUT]\n");
-                response_text.push_str(&full_text);
-                response_text.push('\n');
+                rig::agent::MultiTurnStreamItem::FinalResponse(final_response) => {
+                    Self::flush_text(&mut current_text, &mut messages);
+                    Self::handle_final_response(&final_response);
+                }
+
+                _ => {}
             }
         }
 
-        let blocked = response_text.contains("Tool execution blocked by user");
-
-        if blocked {
-            return Err(UserInterruptionError {text: response_text});
-        }
-
-        return Ok(response_text);
+        messages
     }
 
-    fn handle_assistant_item<R>(assistant_item: StreamedAssistantContent<R>) -> String {
-        let mut response_text = String::new();
-        match assistant_item {
-
-            // 🔹 Texto normal
+    fn handle_assistant_item<R>(
+        item: StreamedAssistantContent<R>,
+        current_text: &mut String,
+        messages: &mut Vec<Message>,
+    ) {
+        match item {
             StreamedAssistantContent::Text(text) => {
-                print!("{text}");
-                io::stdout().flush().unwrap();
-                response_text.push_str(&text.text);
+                Self::handle_text(&text.text, current_text);
             }
 
-            // 🔹 Tool sendo chamada
-            StreamedAssistantContent::ToolCall { tool_call, .. } => {
-
-                response_text.push_str("\n[Calling tool]\n");
-                response_text.push_str(&format!("ID: {}\n", tool_call.function.name));
-                response_text.push_str(&format!("Args: {:?}\n", tool_call.function.arguments));
-
-                print!("{}", response_text);
+            StreamedAssistantContent::ToolCall { tool_call, internal_call_id } => {
+                Self::handle_tool_call(tool_call, internal_call_id, current_text, messages);
             }
 
-            // 🔹 DELTA da tool (isso aqui é importante!)
             StreamedAssistantContent::ToolCallDelta { content, .. } => {
-                println!("\n[Tool delta / possível resultado]");
-                println!("{:?}", content);
+                Self::handle_tool_delta(content);
             }
 
-            // 🔹 Reasoning
             StreamedAssistantContent::Reasoning(reason) => {
-                println!("\n[Reasoning]");
-                println!("{:?}", reason.display_text());
+                Self::handle_reasoning(reason);
             }
 
-            StreamedAssistantContent::ReasoningDelta { id, reasoning } => println!("ReasoningDelta event\n{}\nEnd reasoning", reasoning),
+            StreamedAssistantContent::ReasoningDelta { reasoning, .. } => {
+                Self::handle_reasoning_delta(reasoning);
+            }
 
             StreamedAssistantContent::Final(_) => {}
         }
+    }
 
-        return response_text;
+    fn handle_text(text: &str, buffer: &mut String) {
+        print!("{}", text);
+        io::stdout().flush().unwrap();
+        buffer.push_str(text);
+    }
 
+    fn handle_tool_call(
+        tool_call: ToolCall,
+        internal_call_id: String,
+        current_text: &mut String,
+        messages: &mut Vec<Message>,
+    ) {
+        Self::flush_text(current_text, messages);
+
+        messages.push(Message::Assistant {
+            id: Some(internal_call_id),
+            content: OneOrMany::one(
+                AssistantContent::ToolCall(tool_call)
+            ),
+        });
+    }
+
+    fn handle_tool_delta(content: impl std::fmt::Debug) {
+        println!("\n[Tool delta / possível resultado]");
+        println!("{:?}", content);
+    }
+
+    fn handle_reasoning(reason: impl std::fmt::Debug) {
+        println!("\n[Reasoning]");
+        println!("{:?}", reason);
+    }
+
+    fn handle_reasoning_delta(reasoning: String) {
+        println!("[THINKING]\n{}\n[END THINKING]", reasoning);
+    }
+
+    fn handle_user_item(
+        user_content: StreamedUserContent,
+        current_text: &mut String,
+        messages: &mut Vec<Message>,
+    ) -> Result<(), UserInterruptionError> {
+        let message = Self::parse_user_content(user_content)?;
+
+        Self::flush_text(current_text, messages);
+        messages.push(message);
+
+        Ok(())
+    }
+
+    fn parse_user_content(user_content: StreamedUserContent) -> Result<Message, UserInterruptionError> {
+        match user_content {
+            StreamedUserContent::ToolResult { tool_result, internal_call_id: _ } => {
+                let full_text = Self::extract_tool_result_text(&tool_result);
+
+                let message = Message::tool_result_with_call_id(
+                    tool_result.id,
+                    tool_result.call_id,
+                    full_text.clone()
+                );
+
+                if full_text.contains("Tool execution blocked by user") {
+                    return Err(UserInterruptionError { message });
+                }
+
+                println!("\n\n[Tool result]\n{}", full_text);
+                io::stdout().flush().unwrap();
+
+                Ok(message)
+            }
+        }
+    }
+
+    fn extract_tool_result_text(tool_result: &rig::message::ToolResult) -> String {
+        let text: String = tool_result.content.iter()
+            .filter_map(|item| {
+                if let rig::message::ToolResultContent::Text(t) = item {
+                    Some(t.text.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        if text.is_empty() {
+            format!("{:?}", tool_result.content)
+        } else {
+            text
+        }
+    }
+
+    fn flush_text(buffer: &mut String, messages: &mut Vec<Message>) {
+        if !buffer.is_empty() {
+            messages.push(Message::assistant(buffer.clone()));
+            buffer.clear();
+        }
+    }
+
+    fn handle_final_response(final_response: &rig::agent::FinalResponse) {
+        let usage = final_response.usage();
+
+        println!("\n[Token usage -> input: {}, output: {}, total: {}]\n", usage.input_tokens, usage.output_tokens, usage.total_tokens);
+
+        // O history já vem completo do servidor, evitando reconstrução manual.
+        // Descomente abaixo para atualizar o histórico do agente diretamente:
+        //
+        // if let Some(history) = final_response.history() {
+        //     agent_messages.clear();
+        //     agent_messages.extend_from_slice(history);
+        // }
     }
 }

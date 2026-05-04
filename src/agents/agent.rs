@@ -54,11 +54,11 @@ where
 
     async fn stream(&mut self, input: &str) -> Result<()> {
         let mut stream = self.agent.stream_chat(input, self.history.clone()).await;
-        let output: String = StreamHandler::handle_stream::<M>(&mut stream).await;
+        let mut output = StreamHandler::handle_stream::<M>(&mut stream).await;
 
         println!();
         self.history.push(Message::user(input));
-        self.history.push(Message::assistant(output.clone()));
+        self.history.append(&mut output);
 
         Ok(())
     }

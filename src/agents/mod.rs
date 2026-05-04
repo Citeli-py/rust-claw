@@ -6,3 +6,4 @@ pub mod stream_handler;
 
 pub use agent_config::{AgentConfig, AgentConfigJson};
 pub use agent_interface::AgentInterface;
+pub use stream_handler::{DynStream, StreamHandler, UserInterruptionError};
