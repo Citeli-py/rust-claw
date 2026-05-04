@@ -1,16 +1,9 @@
-use rig::client::{CompletionClient, Nothing};
-use rig::providers::ollama;
 use rig::completion::ToolDefinition;
 use rig::tool::Tool;
 
-use futures::StreamExt;
-use futures::TryStreamExt;
-use rig::streaming::{StreamingPrompt, StreamedAssistantContent};
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-
-use std::io::{self, Write};
 
 use std::process::Command;
 
@@ -25,15 +18,15 @@ impl std::fmt::Display for TerminalError {
 
 impl std::error::Error for TerminalError {}
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct TerminalArgs {
-    command: String,
+    pub command: String,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct TerminalOutput {
-    stdout: String,
-    stderr: String,
+    pub stdout: String,
+    pub stderr: String,
 }
 
 #[derive(Deserialize, Serialize)]

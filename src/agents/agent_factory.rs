@@ -1,5 +1,5 @@
 use rig::client::{CompletionClient, Nothing,};
-use rig::providers::{gemini, groq, ollama};
+use rig::providers::{gemini, groq, ollama, openrouter};
 use rig::completion::Message;
 
 use crate::AgentConfig;
@@ -10,7 +10,8 @@ use crate::agents::AgentInterface;
 pub enum ModelProvider {
     Ollama,
     Groq,
-    Gemini
+    Gemini,
+    OpenRouter,
 }
 
 impl ModelProvider {
@@ -24,6 +25,9 @@ impl ModelProvider {
             }
             ModelProvider::Groq => {
                 "groq".to_string()
+            }
+            ModelProvider::OpenRouter => {
+                "openrouter".to_string()
             }
 
             _ => String::new()
@@ -48,6 +52,10 @@ impl AgentFactory {
             }
             ModelProvider::Groq => {
                 let client = groq::Client::new(api_key)?;
+                Ok(build_agent(client.agent(model), pre_prompt, history).await)
+            }
+            ModelProvider::OpenRouter => {
+                let client = openrouter::Client::new(api_key)?;
                 Ok(build_agent(client.agent(model), pre_prompt, history).await)
             }
         }

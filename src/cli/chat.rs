@@ -11,8 +11,14 @@ pub async fn chat(agent: &mut Box<dyn AgentInterface>) -> anyhow::Result<()> {
         io::stdin().read_line(&mut question)?;
         let question = question.trim();
 
-        if question.contains("/history") {
+        if question.starts_with("/history") {
             println!("{:?}", agent.history());
+            continue;
+        }
+
+        if question.starts_with("/clear"){
+            agent.clean_history();
+            println!("History clean");
             continue;
         }
 

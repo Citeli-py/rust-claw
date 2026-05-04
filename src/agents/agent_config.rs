@@ -27,6 +27,7 @@ impl AgentConfig {
             "gemini" => Some(ModelProvider::Gemini),
             "ollama" => Some(ModelProvider::Ollama),
             "groq" => Some(ModelProvider::Groq),
+            "openrouter" => Some(ModelProvider::OpenRouter),
             _ => None,
         }
     }

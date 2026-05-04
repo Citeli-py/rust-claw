@@ -7,56 +7,27 @@ use ai_agent::cli::{
     list_agents::list_agents,
 };
 
-use clap::{Parser, Subcommand};
-
-#[derive(Parser)]
-#[command(name = "rustclaw")]
-#[command(about = "CLI para automação com agentes", long_about = None)]
-pub struct Cli {
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand)]
-pub enum Commands {
-    /// Cria um novo projeto
-    Create {
-        nome: String,
-    },
-
-    /// Executa um comando no projeto
-    Run {
-        nome: String,
-        mensagem: String,
-    },
-
-    /// Abre chat interativo
-    Chat {
-        nome: String,
-    },
-
-    // Lista os seus agentes
-    List {},
-}
+use ai_agent::{Cli, Commands};
+use clap::Parser;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
 
-    let cli = Cli::try_parse()?;
+    let cli = Cli::parse();
 
     match cli.command {
-        Commands::Create { nome } => {
-            create_agent(&nome);
+        Commands::Create { name } => {
+            create_agent(&name);
         }
 
-        Commands::Run { nome, mensagem } => {
-            println!("Rodando {} com mensagem: {}", nome, mensagem);
-            run_agent(&nome, &mensagem).await;
+        Commands::Run { name, message } => {
+            println!("Running {} agent", name);
+            run_agent(&name, &message).await;
         }
 
-        Commands::Chat { nome } => {
-            println!("Abrindo chat para: {}", nome);
-            let mut agent = load_agent(&nome).await;
+        Commands::Chat { name } => {
+            println!("Opening chat with {} agent", name);
+            let mut agent = load_agent(&name).await;
             chat(&mut agent).await?;
         }
 
