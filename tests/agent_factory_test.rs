@@ -6,18 +6,18 @@ use dotenvy::dotenv;
 
 #[tokio::test]
 async fn test_create_ollama_agent() {
-
     let agent = AgentFactory::create_agent(
         ModelProvider::Ollama, 
         "qwen3.5:0.8b", 
         "", 
         "",
-        Vec::new()
+        Vec::new(),
+        false,
+        vec![]
     ).await;
 
     assert!(agent.is_err() == false);
 }
-
 
 #[tokio::test]
 async fn test_create_gemini_agent() {
@@ -29,7 +29,9 @@ async fn test_create_gemini_agent() {
         "gemini-2.5-flash-lite", 
         &api_key, 
         "",
-        Vec::new()
+        Vec::new(),
+        false,
+        vec![]
     ).await;
 
     assert!(agent.is_err() == false);
@@ -45,7 +47,9 @@ async fn test_response_from_gemini() {
         "gemini-2.5-flash-lite", 
         &api_key, 
         "",
-        Vec::new()
+        Vec::new(),
+        false,
+        vec![]
     ).await;
 
     let mut agent = match result_agent {
@@ -59,25 +63,24 @@ async fn test_response_from_gemini() {
     let result = agent.chat("Be quick, say \"TEST\"").await;
 
     match result {
-        Ok(resp) =>  assert!(resp.to_lowercase().contains("test")),
+        Ok(resp) => assert!(resp.to_lowercase().contains("test")),
         Err(e) => {
             eprintln!("Error trying to generate response with gemini:\n\t{e}");
             panic!()
         }
     }
-
 }
-
 
 #[tokio::test]
 async fn test_response_from_ollama() {
-
     let result_agent = AgentFactory::create_agent(
         ModelProvider::Ollama, 
         "qwen3.5:2b", 
         "", 
         "",
-        Vec::new()
+        Vec::new(),
+        false,
+        vec![]
     ).await;
 
     let mut agent = match result_agent {
@@ -100,5 +103,4 @@ async fn test_response_from_ollama() {
             panic!()
         }
     }
-
 }
