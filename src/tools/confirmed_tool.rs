@@ -73,7 +73,7 @@ where
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
         if self.mode == ConfirmationMode::AlwaysDeny {
             return Err(ConfirmedToolError {
-                message: "Tool execution blocked by user".to_string(),
+                message: "[BLOCKED] Tool execution blocked by user".to_string(),
             });
         }
 
@@ -89,7 +89,7 @@ where
         }
 
         Err(ConfirmedToolError {
-            message: "Tool execution blocked by user".to_string(),
+            message: "[BLOCKED] Tool execution blocked by user".to_string(),
         })
     }
 }
