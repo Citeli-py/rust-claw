@@ -1,9 +1,13 @@
-pub mod agent;
-pub mod agent_factory;
-pub mod agent_config;
-pub mod agent_interface;
+pub mod interface;
+pub mod config;
+pub mod provider;
+pub mod wrapper;
+pub mod builder;
+pub mod factory;
 pub mod stream_handler;
 
-pub use agent_config::{AgentConfig, AgentConfigJson};
-pub use agent_interface::AgentInterface;
+pub use config::{AgentConfig, AgentConfigJson};
+pub use provider::ModelProvider;
+pub use factory::AgentFactory;
+pub use interface::AgentInterface;
 pub use stream_handler::{DynStream, StreamHandler, UserInterruptionError};

@@ -3,7 +3,7 @@ use anyhow::{Result, Context};
 use std::fs;
 use std::path::Path;
 
-use crate::ModelProvider;
+use crate::agents::provider::ModelProvider;
 
 #[derive(Serialize, Deserialize)]
 pub struct AgentConfigJson {
@@ -64,7 +64,7 @@ impl AgentConfig {
             model: config.model,
             api_key: config.api_key,
             pre_prompt: pre_prompt,
-            yolo: false, // Yolo deve ser definido via CLI ou variável de ambiente
+            yolo: false,
             tools: config.tools,
         };
 
