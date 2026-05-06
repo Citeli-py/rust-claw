@@ -1,6 +1,7 @@
 use rig::tool::Tool;
 use rig::completion::ToolDefinition;
 use serde::{Deserialize, Serialize};
+use std::{io, io::Write};
 
 #[derive(Debug)]
 pub struct ConfirmedToolError {
@@ -15,7 +16,7 @@ impl std::fmt::Display for ConfirmedToolError {
 
 impl std::error::Error for ConfirmedToolError {}
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 pub enum ConfirmationMode {
     Ask,          // comportamento normal
     AlwaysAllow,  // usado em testes ou bypass
@@ -30,7 +31,7 @@ where
 {
     inner: T,
     pub tool_name: String,
-    pub mode: ConfirmationMode
+    pub mode: ConfirmationMode,
 }
 
 impl<T> ConfirmedTool<T>
@@ -43,7 +44,7 @@ where
         Self {
             tool_name: T::NAME.to_string(),
             inner: tool,
-            mode: ConfirmationMode::Ask
+            mode: ConfirmationMode::Ask,
         }
     }
 
@@ -52,7 +53,7 @@ where
     }
 }
 
-impl <T> Tool for ConfirmedTool<T> 
+impl<T> Tool for ConfirmedTool<T>
 where
     T: Tool + Send + Sync,
     T::Args: Serialize + for<'de> Deserialize<'de> + Send,
@@ -65,30 +66,33 @@ where
     type Args = T::Args;
     type Output = T::Output;
 
-    async fn definition(&self, prompt: String,) -> ToolDefinition {
+    async fn definition(&self, prompt: String) -> ToolDefinition {
         self.inner.definition(prompt).await
     }
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
-
         if self.mode == ConfirmationMode::AlwaysDeny {
-            return Err(ConfirmedToolError {message: "Tool execution blocked by user".to_string()});
+            return Err(ConfirmedToolError {
+                message: "Tool execution blocked by user".to_string(),
+            });
         }
 
         let command = serde_json::to_string_pretty(&args)
-        .unwrap_or("Unknown command".to_string());
+            .unwrap_or("Unknown command".to_string());
 
-        if self.mode == ConfirmationMode::AlwaysAllow || confirm_tool_use(&self.tool_name, &command){
-            return self.inner.call(args).await
-            .map_err(|e| ConfirmedToolError { message: e.to_string() });
+        if self.mode == ConfirmationMode::AlwaysAllow
+            || confirm_tool_use(&self.tool_name, &command)
+        {
+            return self.inner.call(args).await.map_err(|e| ConfirmedToolError {
+                message: e.to_string(),
+            });
         }
 
-        Err(ConfirmedToolError {message: "Tool execution blocked by user".to_string()})
+        Err(ConfirmedToolError {
+            message: "Tool execution blocked by user".to_string(),
+        })
     }
-
 }
-
-use std::{io, io::Write};
 
 pub fn confirm_tool_use(tool: &str, command: &str) -> bool {
     println!("\n🤖 Pensando...\n");
