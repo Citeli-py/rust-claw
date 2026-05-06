@@ -20,14 +20,14 @@ async fn main() -> anyhow::Result<()> {
             create_agent(&name);
         }
 
-        Commands::Run { name, message } => {
+        Commands::Run { name, message, yolo } => {
             println!("Running {} agent", name);
-            run_agent(&name, &message).await;
+            run_agent(&name, &message, yolo).await;
         }
 
-        Commands::Chat { name } => {
+        Commands::Chat { name, yolo } => {
             println!("Opening chat with {} agent", name);
-            let mut agent = load_agent(&name).await;
+            let mut agent = load_agent(&name, yolo).await;
             chat(&mut agent).await?;
         }
 

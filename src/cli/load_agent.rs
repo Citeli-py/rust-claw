@@ -1,16 +1,14 @@
 use crate::agents::{AgentInterface, AgentConfig};
-use crate::{AgentFactory, ModelProvider};
-use std::fs;
+use crate::AgentFactory;
 
 
-
-pub async fn load_agent(name: &str) -> Box<dyn AgentInterface> {
+pub async fn load_agent(name: &str, yolo: bool) -> Box<dyn AgentInterface> {
 
     println!("Loading model...");
-    let config = AgentConfig::from_path(&format!("agents/{}", name)).unwrap();
+    let mut config = AgentConfig::from_path(&format!("agents/{}", name)).unwrap();
+    config.yolo = yolo; // Sobrescreve com o valor da CLI
 
-
-    let mut agent = AgentFactory::from_config(
+    let agent = AgentFactory::from_config(
         config,
         Vec::new()
     ).await.unwrap();

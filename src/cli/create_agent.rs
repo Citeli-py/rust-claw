@@ -37,7 +37,8 @@ fn save_config(base_path: &str, config: &AgentConfig) {
     let config = AgentConfigJson {
         model: config.model.clone(),
         provider: config.provider.to_string(),
-        api_key: config.api_key.clone()
+        api_key: config.api_key.clone(),
+        tools: config.tools.clone(),
     };
 
     let json = serde_json::to_string_pretty(&config).unwrap();
@@ -66,6 +67,8 @@ pub fn create_agent(name: &str) {
         model,
         api_key: String::new(),
         pre_prompt: String::new(),
+        yolo: false, // Yolo é definido via CLI, não aqui
+        tools: vec!["terminal".to_string()],
     };
 
     // cria arquivos
