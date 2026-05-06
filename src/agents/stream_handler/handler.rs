@@ -133,6 +133,9 @@ impl StreamHandler {
         match user_content {
             StreamedUserContent::ToolResult { tool_result, internal_call_id: _ } => {
                 let full_text = Self::extract_tool_result_text(&tool_result);
+                
+                println!("\n\n[Tool result]\n{}", full_text);
+                io::stdout().flush().unwrap();
 
                 let message = Message::tool_result_with_call_id(
                     tool_result.id,
@@ -140,12 +143,9 @@ impl StreamHandler {
                     full_text.clone()
                 );
 
-                if full_text.contains("Tool execution blocked by user") {
+                if full_text.eq("Toolset error: ToolCallError: ToolCallError: [BLOCKED] Tool execution blocked by user") {
                     return Err(UserInterruptionError { message });
                 }
-
-                println!("\n\n[Tool result]\n{}", full_text);
-                io::stdout().flush().unwrap();
 
                 Ok(message)
             }
