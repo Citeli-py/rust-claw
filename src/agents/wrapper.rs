@@ -1,12 +1,8 @@
-use anyhow::{Result};
+use anyhow::Result;
 use async_trait::async_trait;
-use rig::{agent::{Agent, AgentBuilder, PromptHook}, completion::{Chat, CompletionModel}, message::{Message}};
+use rig::{agent::{Agent, PromptHook}, completion::{Chat, CompletionModel}, message::Message};
 use rig::streaming::StreamingChat;
-use crate::agents::AgentInterface;
-
-use std::result::Result::Ok;
-use crate::tools::*;
-use crate::tools::confirmed_tool::ConfirmedTool;
+use crate::agents::interface::AgentInterface;
 use crate::agents::stream_handler::StreamHandler;
 
 pub(super) struct AgentWrapper<M, P>
@@ -63,21 +59,4 @@ where
         Ok(())
     }
 
-}
-
-pub(super) async fn build_agent<M, P>(builder: AgentBuilder<M, P>, pre_prompt: &str, history: Vec<Message>) -> Box<dyn AgentInterface> 
-where 
-    M: CompletionModel + Send + Sync + 'static,
-    P: PromptHook<M> + Send + Sync + 'static,
-{
-
-    let builder = builder
-    .preamble(pre_prompt)
-    .default_max_turns(20);
-
-    let terminal_tool = ConfirmedTool::new(TerminalTool);
-    let builder = builder.tool(terminal_tool);
-
-    let agent = builder.build();
-    Box::new(AgentWrapper::new(agent, history))
 }

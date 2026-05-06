@@ -1,5 +1,4 @@
-use ai_agent::tools::terminal::{TerminalTool, TerminalArgs, TerminalOutput};
-use rig::completion::ToolDefinition;
+use ai_agent::tools::terminal::{TerminalTool, TerminalArgs};
 use rig::tool::Tool;
 
 

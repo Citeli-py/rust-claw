@@ -1,4 +1,4 @@
-use ai_agent::tools::confirmed_tool::{ConfirmedTool, ConfirmationMode};
+use ai_agent::tools::confirmed_tool::{ConfirmedTool, ConfirmationMode, ConfirmedToolError};
 use rig::tool::Tool;
 
 use serde::{Serialize, Deserialize};
@@ -22,7 +22,7 @@ pub struct StringProcessorTool;
 impl Tool for StringProcessorTool {
     const NAME: &'static str = "string_processor";
 
-    type Error = rig::tool::ToolError;
+    type Error = ConfirmedToolError;
     type Args = StringProcessorArgs;
     type Output = StringProcessorOutput;
 
@@ -46,7 +46,7 @@ impl Tool for StringProcessorTool {
             "uppercase" => args.text.to_uppercase(),
             "lowercase" => args.text.to_lowercase(),
             "reverse" => args.text.chars().rev().collect(),
-            _ => return Err(rig::tool::ToolError::ToolCallError("Unknown operation".into())),
+            _ => return Err(ConfirmedToolError { message: "Unknown operation".to_string() }),
         };
 
         Ok(StringProcessorOutput { result })

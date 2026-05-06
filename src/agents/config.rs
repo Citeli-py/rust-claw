@@ -3,13 +3,19 @@ use anyhow::{Result, Context};
 use std::fs;
 use std::path::Path;
 
-use crate::ModelProvider;
+use crate::agents::provider::ModelProvider;
 
 #[derive(Serialize, Deserialize)]
 pub struct AgentConfigJson {
     pub provider: String,
     pub model: String,
     pub api_key: String,
+    #[serde(default = "default_tools")]
+    pub tools: Vec<String>,
+}
+
+fn default_tools() -> Vec<String> {
+    vec!["terminal".to_string()]
 }
 
 pub struct AgentConfig {
@@ -18,6 +24,8 @@ pub struct AgentConfig {
     pub model: String,
     pub api_key: String,
     pub pre_prompt: String,
+    pub yolo: bool,
+    pub tools: Vec<String>,
 }
 
 impl AgentConfig {
@@ -55,7 +63,9 @@ impl AgentConfig {
             provider: AgentConfig::match_provider(&config.provider).unwrap(),
             model: config.model,
             api_key: config.api_key,
-            pre_prompt: pre_prompt
+            pre_prompt: pre_prompt,
+            yolo: false,
+            tools: config.tools,
         };
 
         Ok(agent_config)

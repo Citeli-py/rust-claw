@@ -168,7 +168,7 @@ async fn test_stream_with_user_interruption() {
     let items = vec![
         Ok(make_text_content("I'll run that")),
         Ok(make_tool_call_content("terminal", serde_json::json!({"command": "rm -rf /"}))),
-        Ok(make_tool_result_content("Tool execution blocked by user")),
+        Ok(make_tool_result_content("Toolset error: ToolCallError: ToolCallError: [BLOCKED] Tool execution blocked by user")),
     ];
 
     let mut stream = make_stream(items);
@@ -186,7 +186,7 @@ async fn test_stream_with_user_interruption() {
 
     // Third: Tool result with blocked message
     let result_text = extract_text_from_message(&messages[2]).unwrap();
-    assert!(result_text.contains("Tool execution blocked by user"));
+    assert!(result_text.contains("[BLOCKED] Tool execution blocked by user"));
 }
 
 // ============================================================
@@ -283,6 +283,118 @@ async fn test_empty_stream() {
     let messages = StreamHandler::handle_stream::<MockModel>(&mut stream).await;
 
     assert_eq!(messages.len(), 0);
+}
+
+// ============================================================
+// TEST: Regression - blocked marker in the middle of tool output should NOT trigger interruption
+// ============================================================
+#[tokio::test]
+async fn test_blocked_marker_in_middle_not_interruption() {
+    // Simulates a grep command that found the blocked string in a file
+    let grep_output = "src/tools/confirmed_tool.rs:76: [BLOCKED] Tool execution blocked by user\nsrc/tools/confirmed_tool.rs:92: [BLOCKED] Tool execution blocked by user";
+
+    let items = vec![
+        Ok(make_text_content("Searching for blocked markers...")),
+        Ok(make_tool_call_content("terminal", serde_json::json!({"command": "grep -r '[BLOCKED]' src/"}))),
+        Ok(make_tool_result_content(grep_output)),
+        Ok(make_text_content("Found 2 occurrences")),
+        Ok(make_final_response()),
+    ];
+
+    let mut stream = make_stream(items);
+    let messages = StreamHandler::handle_stream::<MockModel>(&mut stream).await;
+
+    // Should have ALL 4 messages, proving it did NOT break early
+    // If the handler wrongly triggered UserInterruptionError, it would stop at 3 messages.
+    assert_eq!(messages.len(), 4);
+
+    assert_eq!(extract_text_from_message(&messages[0]).unwrap(), "Searching for blocked markers...");
+    assert!(is_tool_call_message(&messages[1]));
+
+    // Tool result should contain the grep output
+    let result_text = extract_text_from_message(&messages[2]).unwrap();
+    assert!(result_text.contains("[BLOCKED] Tool execution blocked by user"));
+
+    // Most importantly: text AFTER the tool result must exist
+    assert_eq!(extract_text_from_message(&messages[3]).unwrap(), "Found 2 occurrences");
+}
+
+// ============================================================
+// TEST: Regression - echo producing blocked string should NOT trigger interruption
+// ============================================================
+#[tokio::test]
+async fn test_echo_blocked_string_not_interruption() {
+    // Simulates a command like: echo "[BLOCKED] Tool execution blocked by user"
+    // The terminal returns the text as-is (no error prefix from rig),
+    // so this must NOT be treated as a user interruption.
+    let echo_output = "[BLOCKED] Tool execution blocked by user";
+
+    let items = vec![
+        Ok(make_text_content("Running echo command")),
+        Ok(make_tool_call_content("terminal", serde_json::json!({"command": "echo '[BLOCKED] Tool execution blocked by user'"}))),
+        Ok(make_tool_result_content(echo_output)),
+        Ok(make_text_content("Echo completed successfully")),
+        Ok(make_final_response()),
+    ];
+
+    let mut stream = make_stream(items);
+    let messages = StreamHandler::handle_stream::<MockModel>(&mut stream).await;
+
+    // Should have ALL 4 messages — echo output does NOT start with the full rig error prefix
+    assert_eq!(messages.len(), 4);
+
+    let result_text = extract_text_from_message(&messages[2]).unwrap();
+    assert_eq!(result_text, "[BLOCKED] Tool execution blocked by user");
+
+    // Text after tool result must exist (proves stream was not interrupted)
+    assert_eq!(extract_text_from_message(&messages[3]).unwrap(), "Echo completed successfully");
+}
+
+// ============================================================
+// TEST: Regression - blocked marker at start SHOULD trigger interruption
+// ============================================================
+#[tokio::test]
+async fn test_blocked_marker_at_start_is_interruption() {
+    let blocked_output = "Toolset error: ToolCallError: ToolCallError: [BLOCKED] Tool execution blocked by user";
+
+    let items = vec![
+        Ok(make_text_content("Attempting dangerous command")),
+        Ok(make_tool_call_content("terminal", serde_json::json!({"command": "rm -rf /"}))),
+        Ok(make_tool_result_content(blocked_output)),
+        Ok(make_text_content("This should not appear")),
+        Ok(make_final_response()),
+    ];
+
+    let mut stream = make_stream(items);
+    let messages = StreamHandler::handle_stream::<MockModel>(&mut stream).await;
+
+    // Should stop at 3 (text + tool_call + interruption), NOT include the "This should not appear"
+    assert_eq!(messages.len(), 3);
+
+    let result_text = extract_text_from_message(&messages[2]).unwrap();
+    assert!(result_text.contains("[BLOCKED]"));
+}
+
+#[tokio::test]
+async fn test_blocked_marker_at_start_but_with_more_content_not_interruption() {
+    let blocked_output = "Toolset error: ToolCallError: ToolCallError: [BLOCKED] Tool execution blocked by user, I would say that if it was a user interruption";
+
+    let items = vec![
+        Ok(make_text_content("Attempting dangerous command")),
+        Ok(make_tool_call_content("terminal", serde_json::json!({"command": "rm -rf /"}))),
+        Ok(make_tool_result_content(blocked_output)),
+        Ok(make_text_content("This should appear")),
+        Ok(make_final_response()),
+    ];
+
+    let mut stream = make_stream(items);
+    let messages = StreamHandler::handle_stream::<MockModel>(&mut stream).await;
+
+    // The stream should not stop
+    assert_eq!(messages.len(), 4);
+
+    let result_text = extract_text_from_message(&messages[3]).unwrap();
+    assert!(result_text.contains("This should appear"));
 }
 
 // ============================================================

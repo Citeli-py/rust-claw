@@ -1,45 +1,19 @@
 use std::io;
 use std::io::Write;
-use futures::{Stream, StreamExt};
+use futures::StreamExt;
 use rig::OneOrMany;
-
 use rig::message::{AssistantContent, Message, ToolCall};
-use rig::streaming::{ StreamedUserContent, StreamedAssistantContent};
+use rig::streaming::{StreamedUserContent, StreamedAssistantContent};
 use rig::completion::{CompletionModel, GetTokenUsage};
 
-pub type DynStream<M> = std::pin::Pin<
-    Box<
-        dyn Stream<
-                Item = std::result::Result<
-                    rig::agent::MultiTurnStreamItem<
-                        <M as CompletionModel>::StreamingResponse
-                    >,
-                    rig::agent::StreamingError
-                >
-            > + Send
-    >
->;
-
-#[derive(Debug)]
-pub struct UserInterruptionError {
-    pub message: Message
-}
-
-impl std::fmt::Display for UserInterruptionError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "operation interrupted by user")
-    }
-}
-
-impl std::error::Error for UserInterruptionError {}
+use super::types::{DynStream, UserInterruptionError};
 
 pub struct StreamHandler {}
-
 
 impl StreamHandler {
 
     pub async fn handle_stream<M>(stream: &mut DynStream<M>) -> Vec<Message>
-    where 
+    where
         M: CompletionModel + 'static,
         M::StreamingResponse: GetTokenUsage,
     {
@@ -48,7 +22,7 @@ impl StreamHandler {
 
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.unwrap();
-            
+
             match chunk {
                 rig::agent::MultiTurnStreamItem::StreamAssistantItem(item) => {
                     Self::handle_assistant_item(item, &mut current_text, &mut messages);
@@ -159,6 +133,9 @@ impl StreamHandler {
         match user_content {
             StreamedUserContent::ToolResult { tool_result, internal_call_id: _ } => {
                 let full_text = Self::extract_tool_result_text(&tool_result);
+                
+                println!("\n\n[Tool result]\n{}", full_text);
+                io::stdout().flush().unwrap();
 
                 let message = Message::tool_result_with_call_id(
                     tool_result.id,
@@ -166,12 +143,9 @@ impl StreamHandler {
                     full_text.clone()
                 );
 
-                if full_text.contains("Tool execution blocked by user") {
+                if full_text.eq("Toolset error: ToolCallError: ToolCallError: [BLOCKED] Tool execution blocked by user") {
                     return Err(UserInterruptionError { message });
                 }
-
-                println!("\n\n[Tool result]\n{}", full_text);
-                io::stdout().flush().unwrap();
 
                 Ok(message)
             }

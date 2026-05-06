@@ -27,12 +27,20 @@ pub enum Commands {
 
         /// Message to send to the agent
         message: String,
+
+        /// Skip all tool confirmations (yolo mode)
+        #[arg(short, long)]
+        yolo: bool,
     },
 
     /// Start an interactive chat session
     Chat {
         /// Agent name
         name: String,
+
+        /// Skip all tool confirmations (yolo mode)
+        #[arg(short, long)]
+        yolo: bool,
     },
 
     /// List all available agents
