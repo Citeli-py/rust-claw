@@ -140,7 +140,7 @@ async fn test_definition() {
     let def = tool.definition("prompt".to_string()).await;
 
     assert_eq!(def.name, "web_browser");
-    assert!(def.description.contains("navegador"));
+    assert!(def.description.contains("browser"));
     assert!(def.parameters["properties"]["action"]["enum"].is_array());
     assert_eq!(def.parameters["required"][0], "action");
 }

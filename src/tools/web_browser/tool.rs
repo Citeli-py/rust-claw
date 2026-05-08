@@ -81,12 +81,12 @@ impl<D: WebDriverHandlerInterface + Send + Sync + 'static> Tool for WebBrowserTo
         ToolDefinition {
             name: "web_browser".to_string(),
             description: concat!(
-                "Controla um navegador web utilizando WebDriver. ",
-                "Use 'find_clickable_elements' para listar botões, links e controles clicáveis. ",
-                "Cada elemento retornado contém 'index', 'text' (texto visível), 'tag_name', 'css_selector', 'role' e 'bounding_box'. ",
-                "Para clicar, prefira passar o 'element_json' exato ou use 'click_by_selector' com o css_selector. ",
-                "Use 'find_fillable_elements' para campos de formulário. ",
-                "Se houver múltiplos elementos similares, use 'index' ou 'text' para diferenciá-los."
+                "Controls a web browser using WebDriver. ",
+                "Use 'find_clickable_elements' to list buttons, links and clickable controls. ",
+                "Each returned element contains 'index', 'text' (visible text), 'tag_name', 'css_selector', 'role' and 'bounding_box'. ",
+                "To click, prefer passing the exact 'element_json' or use 'click_by_selector' with a CSS selector. ",
+                "Use 'find_fillable_elements' for form fields. ",
+                "If there are multiple similar elements, use 'index' or 'text' to differentiate them."
             ).to_string(),
             parameters: json!({
                 "type": "object",
@@ -103,23 +103,23 @@ impl<D: WebDriverHandlerInterface + Send + Sync + 'static> Tool for WebBrowserTo
                             "fill_element",
                             "fill_by_selector"
                         ],
-                        "description": "Ação a ser executada no navegador"
+                        "description": "Action to execute in the browser"
                     },
                     "url": {
                         "type": "string",
-                        "description": "URL para navegar (usado com action=goto)"
+                        "description": "URL to navigate to (used with action=goto)"
                     },
                     "element_json": {
                         "type": "string",
-                        "description": "JSON do elemento retornado por find_clickable_elements ou find_fillable_elements"
+                        "description": "JSON of the element returned by find_clickable_elements or find_fillable_elements"
                     },
                     "css_selector": {
                         "type": "string",
-                        "description": "CSS selector para encontrar o elemento (alternativa ao element_json)"
+                        "description": "CSS selector to find the element (alternative to element_json)"
                     },
                     "text": {
                         "type": "string",
-                        "description": "Texto para preencher em um campo (usado com action=fill_element ou fill_by_selector)"
+                        "description": "Text to fill in a field (used with action=fill_element or fill_by_selector)"
                     }
                 },
                 "required": ["action"]
@@ -140,7 +140,7 @@ impl<D: WebDriverHandlerInterface + Send + Sync + 'static> Tool for WebBrowserTo
 
                 WebBrowserOutput {
                     success: true,
-                    message: format!("Navegou para {}", url),
+                    message: format!("Navigated to {}", url),
                     page_text: None,
                     elements: None,
                 }
@@ -154,7 +154,7 @@ impl<D: WebDriverHandlerInterface + Send + Sync + 'static> Tool for WebBrowserTo
 
                 WebBrowserOutput {
                     success: true,
-                    message: "Texto da página obtido com sucesso".to_string(),
+                    message: "Page text retrieved successfully".to_string(),
                     page_text: Some(text),
                     elements: None,
                 }
@@ -168,7 +168,7 @@ impl<D: WebDriverHandlerInterface + Send + Sync + 'static> Tool for WebBrowserTo
 
                 WebBrowserOutput {
                     success: true,
-                    message: format!("{} elementos clicáveis encontrados", elements.len()),
+                    message: format!("{} clickable elements found", elements.len()),
                     page_text: None,
                     elements: Some(elements),
                 }
@@ -182,7 +182,7 @@ impl<D: WebDriverHandlerInterface + Send + Sync + 'static> Tool for WebBrowserTo
 
                 WebBrowserOutput {
                     success: true,
-                    message: format!("{} elementos preenchíveis encontrados", elements.len()),
+                    message: format!("{} fillable elements found", elements.len()),
                     page_text: None,
                     elements: Some(elements),
                 }
@@ -198,7 +198,7 @@ impl<D: WebDriverHandlerInterface + Send + Sync + 'static> Tool for WebBrowserTo
 
                 WebBrowserOutput {
                     success: true,
-                    message: "Elemento clicado com sucesso".to_string(),
+                    message: "Element clicked successfully".to_string(),
                     page_text: None,
                     elements: None,
                 }
@@ -214,7 +214,7 @@ impl<D: WebDriverHandlerInterface + Send + Sync + 'static> Tool for WebBrowserTo
 
                 WebBrowserOutput {
                     success: true,
-                    message: format!("Elemento '{}' clicado com sucesso", selector),
+                    message: format!("Element '{}' clicked successfully", selector),
                     page_text: None,
                     elements: None,
                 }
@@ -231,7 +231,7 @@ impl<D: WebDriverHandlerInterface + Send + Sync + 'static> Tool for WebBrowserTo
 
                 WebBrowserOutput {
                     success: true,
-                    message: "Elemento preenchido com sucesso".to_string(),
+                    message: "Element filled successfully".to_string(),
                     page_text: None,
                     elements: None,
                 }
@@ -248,7 +248,7 @@ impl<D: WebDriverHandlerInterface + Send + Sync + 'static> Tool for WebBrowserTo
 
                 WebBrowserOutput {
                     success: true,
-                    message: format!("Elemento '{}' preenchido com sucesso", selector),
+                    message: format!("Element '{}' filled successfully", selector),
                     page_text: None,
                     elements: None,
                 }
