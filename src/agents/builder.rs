@@ -40,7 +40,7 @@ where
             }
             "web_browser" => {
                 let web_driver = WebDriverHandler::new(false).await.unwrap();
-                let mut tool = ConfirmedTool::new(WebBrowserTool{web_driver});
+                let mut tool = ConfirmedTool::new(WebBrowserTool::new(web_driver));
                 tool.set_mode(confirmation_mode);
                 agent_builder_tool = apply_tool(&mut builder, agent_builder_tool, tool);
             }

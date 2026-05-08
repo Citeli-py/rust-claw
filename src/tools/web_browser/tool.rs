@@ -4,7 +4,7 @@ use rig::tool::Tool;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::tools::web_browser::WebDriverHandler;
+use crate::tools::web_browser::WebDriverHandlerInterface;
 use crate::tools::web_browser::types::ElementInfo;
 
 #[derive(Debug)]
@@ -60,17 +60,17 @@ pub struct WebBrowserOutput {
     pub elements: Option<Vec<ElementInfo>>,
 }
 
-pub struct WebBrowserTool {
-    pub web_driver: WebDriverHandler,
+pub struct WebBrowserTool<D: WebDriverHandlerInterface> {
+    pub web_driver: D,
 }
 
-impl WebBrowserTool {
-    pub fn new(web_driver: WebDriverHandler) -> Self {
+impl<D: WebDriverHandlerInterface> WebBrowserTool<D> {
+    pub fn new(web_driver: D) -> Self {
         Self { web_driver }
     }
 }
 
-impl Tool for WebBrowserTool {
+impl<D: WebDriverHandlerInterface + Send + Sync + 'static> Tool for WebBrowserTool<D> {
     const NAME: &'static str = "web_browser";
 
     type Error = WebBrowserError;

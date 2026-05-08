@@ -2,7 +2,20 @@ use std::error::Error;
 use thirtyfour::prelude::*;
 use std::collections::HashMap;
 use serde_json::Value;
+use async_trait::async_trait;
 use crate::tools::web_browser::types::*;
+
+#[async_trait]
+pub trait WebDriverHandlerInterface: Send + Sync {
+    async fn goto(&self, url: &str) -> Result<(), Box<dyn Error + Send + Sync>>;
+    async fn get_page_text(&self) -> Result<String, Box<dyn Error + Send + Sync>>;
+    async fn find_clickable_elements(&self) -> Result<Vec<ElementInfo>, Box<dyn Error + Send + Sync>>;
+    async fn find_fillable_elements(&self) -> Result<Vec<ElementInfo>, Box<dyn Error + Send + Sync>>;
+    async fn click_element(&self, element_json: &str) -> Result<(), Box<dyn Error + Send + Sync>>;
+    async fn click_by_selector(&self, selector: &str) -> Result<(), Box<dyn Error + Send + Sync>>;
+    async fn fill_element(&self, element_json: &str, text: &str) -> Result<(), Box<dyn Error + Send + Sync>>;
+    async fn fill_by_selector(&self, selector: &str, text: &str) -> Result<(), Box<dyn Error + Send + Sync>>;
+}
 
 const CLICKABLE_SELECTOR: &str = concat!(
     "button, a[href], input[type='button'], input[type='submit'], ",
@@ -21,6 +34,62 @@ pub struct WebDriverHandler {
     pub driver: WebDriver,
 }
 
+#[async_trait]
+impl WebDriverHandlerInterface for WebDriverHandler {
+    async fn goto(&self, url: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
+        self.driver.goto(url).await?;
+        Ok(())
+    }
+
+    async fn get_page_text(&self) -> Result<String, Box<dyn Error + Send + Sync>> {
+        let body = self.driver.find(By::Tag("body")).await?;
+        let text = body.text().await?;
+        Ok(text)
+    }
+
+    async fn find_clickable_elements(&self) -> Result<Vec<ElementInfo>, Box<dyn Error + Send + Sync>> {
+        let elements = self.driver.find_all(By::Css(CLICKABLE_SELECTOR)).await?;
+        let all = WebDriverHandler::elements_to_infos(elements).await;
+        Ok(all.into_iter().filter(|e| e.is_displayed).collect())
+    }
+
+    async fn find_fillable_elements(&self) -> Result<Vec<ElementInfo>, Box<dyn Error + Send + Sync>> {
+        let elements = self.driver.find_all(By::Css(FILLABLE_SELECTOR)).await?;
+        let all = WebDriverHandler::elements_to_infos(elements).await;
+        Ok(all.into_iter().filter(|e| e.is_displayed).collect())
+    }
+
+    async fn click_element(&self, element_json: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let value: Value = serde_json::from_str(element_json)?;
+        let handle = self.driver.handle().clone();
+        let elem = WebElement::from_json(value, handle)?;
+        elem.click().await?;
+        Ok(())
+    }
+
+    async fn click_by_selector(&self, selector: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let elem = self.driver.find(By::Css(selector)).await?;
+        elem.click().await?;
+        Ok(())
+    }
+
+    async fn fill_element(&self, element_json: &str, text: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let value: Value = serde_json::from_str(element_json)?;
+        let handle = self.driver.handle().clone();
+        let elem = WebElement::from_json(value, handle)?;
+        elem.clear().await?;
+        elem.send_keys(text).await?;
+        Ok(())
+    }
+
+    async fn fill_by_selector(&self, selector: &str, text: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let elem = self.driver.find(By::Css(selector)).await?;
+        elem.clear().await?;
+        elem.send_keys(text).await?;
+        Ok(())
+    }
+}
+
 impl WebDriverHandler {
     pub async fn new(headless: bool) -> Result<Self, Box<dyn Error + Send + Sync>> {
         let mut chrome_config = DesiredCapabilities::chrome();
@@ -34,20 +103,9 @@ impl WebDriverHandler {
         Ok(Self { driver })
     }
 
-    pub async fn goto(&self, url: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
-        self.driver.goto(url).await?;
-        Ok(())
-    }
-
     pub async fn close(self) -> Result<(), Box<dyn Error + Send + Sync>> {
         self.driver.quit().await?;
         Ok(())
-    }
-
-    pub async fn get_page_text(&self) -> Result<String, Box<dyn Error + Send + Sync>> {
-        let body = self.driver.find(By::Tag("body")).await?;
-        let text = body.text().await?;
-        Ok(text)
     }
 
     async fn elements_to_infos(elements: Vec<WebElement>) -> Vec<ElementInfo> {
@@ -64,48 +122,6 @@ impl WebDriverHandler {
         let elements = self.driver.find_all(By::Css("*")).await?;
         let all = Self::elements_to_infos(elements).await;
         Ok(all.into_iter().filter(|e| e.is_displayed).collect())
-    }
-
-    pub async fn find_clickable_elements(&self) -> Result<Vec<ElementInfo>, Box<dyn Error + Send + Sync>> {
-        let elements = self.driver.find_all(By::Css(CLICKABLE_SELECTOR)).await?;
-        let all = Self::elements_to_infos(elements).await;
-        Ok(all.into_iter().filter(|e| e.is_displayed).collect())
-    }
-
-    pub async fn find_fillable_elements(&self) -> Result<Vec<ElementInfo>, Box<dyn Error + Send + Sync>> {
-        let elements = self.driver.find_all(By::Css(FILLABLE_SELECTOR)).await?;
-        let all = Self::elements_to_infos(elements).await;
-        Ok(all.into_iter().filter(|e| e.is_displayed).collect())
-    }
-
-    pub async fn click_element(&self, element_json: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let value: Value = serde_json::from_str(element_json)?;
-        let handle = self.driver.handle().clone();
-        let elem = WebElement::from_json(value, handle)?;
-        elem.click().await?;
-        Ok(())
-    }
-
-    pub async fn click_by_selector(&self, selector: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let elem = self.driver.find(By::Css(selector)).await?;
-        elem.click().await?;
-        Ok(())
-    }
-
-    pub async fn fill_element(&self, element_json: &str, text: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let value: Value = serde_json::from_str(element_json)?;
-        let handle = self.driver.handle().clone();
-        let elem = WebElement::from_json(value, handle)?;
-        elem.clear().await?;
-        elem.send_keys(text).await?;
-        Ok(())
-    }
-
-    pub async fn fill_by_selector(&self, selector: &str, text: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let elem = self.driver.find(By::Css(selector)).await?;
-        elem.clear().await?;
-        elem.send_keys(text).await?;
-        Ok(())
     }
 }
 
