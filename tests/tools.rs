@@ -5,3 +5,6 @@ mod terminal;
 
 #[path ="tools/web_driver.rs"]
 mod web_driver;
+
+#[path = "tools/web_browser_tool.rs"]
+mod web_browser_tool;
