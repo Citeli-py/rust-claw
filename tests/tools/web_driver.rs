@@ -1,3 +1,4 @@
+use ai_agent::tools::WebDriverHandlerInterface;
 use ai_agent::tools::web_browser::{WebDriverHandler, ElementType, ElementInfo};
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
