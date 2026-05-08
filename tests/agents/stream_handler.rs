@@ -406,7 +406,13 @@ async fn test_stream_with_reasoning_delta() {
         Ok(MultiTurnStreamItem::StreamAssistantItem(
             StreamedAssistantContent::ReasoningDelta {
                 id: Some("r1".to_string()),
-                reasoning: "thinking step by step".to_string(),
+                reasoning: "thinking step".to_string(),
+            },
+        )),
+        Ok(MultiTurnStreamItem::StreamAssistantItem(
+            StreamedAssistantContent::ReasoningDelta {
+                id: Some("r2".to_string()),
+                reasoning: " by step".to_string(),
             },
         )),
         Ok(make_text_content("Answer")),
@@ -416,9 +422,9 @@ async fn test_stream_with_reasoning_delta() {
     let mut stream = make_stream(items);
     let messages = StreamHandler::handle_stream::<MockModel>(&mut stream).await;
 
-    // Reasoning delta is just logged, only text message should exist
-    assert_eq!(messages.len(), 1);
-    assert_eq!(extract_text_from_message(&messages[0]).unwrap(), "Answer");
+    // Reasoning delta must generate a message
+    assert_eq!(messages.len(), 2);
+    assert!(extract_text_from_message(&messages[0]).unwrap().contains("thinking step by step"));
 }
 
 // ============================================================
