@@ -15,12 +15,12 @@ where
     .preamble(pre_prompt)
     .default_max_turns(20);
 
-    let agent = build_with_tools(builder, tools, yolo);
+    let agent = build_with_tools(builder, tools, yolo).await;
 
     Box::new(AgentWrapper::new(agent, history))
 }
 
-pub(super) fn build_with_tools<M, P>(builder: AgentBuilder<M, P>, tools: Vec<String>, yolo: bool) -> Agent<M, P>
+pub(super) async fn build_with_tools<M, P>(builder: AgentBuilder<M, P>, tools: Vec<String>, yolo: bool) -> Agent<M, P>
 where
     M: CompletionModel + Send + Sync + 'static,
     P: PromptHook<M> + Send + Sync + 'static,
@@ -35,6 +35,12 @@ where
         match tool_name.as_str() {
             "terminal" => {
                 let mut tool = ConfirmedTool::new(TerminalTool);
+                tool.set_mode(confirmation_mode);
+                agent_builder_tool = apply_tool(&mut builder, agent_builder_tool, tool);
+            }
+            "web_browser" => {
+                let web_driver = WebDriverHandler::new(false).await.unwrap();
+                let mut tool = ConfirmedTool::new(WebBrowserTool::new(web_driver));
                 tool.set_mode(confirmation_mode);
                 agent_builder_tool = apply_tool(&mut builder, agent_builder_tool, tool);
             }

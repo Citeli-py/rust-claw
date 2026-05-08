@@ -16,4 +16,5 @@ dotenvy = "0.15.7"
 clap = { version = "4.6.0", features = ["derive"] }
 rig-derive = "0.1.12"
 tempfile = "3.27.0"
+thirtyfour = "0.37.0"
 

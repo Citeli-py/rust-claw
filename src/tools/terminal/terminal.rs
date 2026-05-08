@@ -42,13 +42,13 @@ impl Tool for TerminalTool {
     async fn definition(&self, _prompt: String) -> ToolDefinition {
         ToolDefinition {
             name: "terminal".to_string(),
-            description: "Executa comandos no terminal Linux".to_string(),
+            description: "Executes commands in the Linux terminal".to_string(),
             parameters: json!({
                 "type": "object",
                 "properties": {
                     "command": {
                         "type": "string",
-                        "description": "Comando a ser executado no terminal"
+                        "description": "Command to execute in the terminal"
                     }
                 },
                 "required": ["command"]
