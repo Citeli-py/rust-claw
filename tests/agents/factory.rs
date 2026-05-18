@@ -16,7 +16,8 @@ async fn test_create_ollama_agent() {
         "",
         Vec::new(),
         false,
-        vec![]
+        vec![],
+        Default::default()
     ).await;
 
     assert!(agent.is_err() == false);
@@ -34,7 +35,8 @@ async fn test_create_gemini_agent() {
         "",
         Vec::new(),
         false,
-        vec![]
+        vec![],
+        Default::default()
     ).await;
 
     assert!(agent.is_err() == false);
@@ -52,7 +54,8 @@ async fn test_response_from_gemini() {
         "",
         Vec::new(),
         false,
-        vec![]
+        vec![],
+        Default::default()
     ).await;
 
     let mut agent = match result_agent {
@@ -83,7 +86,8 @@ async fn test_response_from_ollama() {
         "",
         Vec::new(),
         false,
-        vec![]
+        vec![],
+        Default::default()
     ).await;
 
     let mut agent = match result_agent {
@@ -117,7 +121,8 @@ async fn test_history_returns_messages() {
         "",
         Vec::new(),
         false,
-        vec![]
+        vec![],
+        Default::default()
     ).await;
 
     let mut agent = match result_agent {
@@ -145,7 +150,8 @@ async fn test_clean_history_clears_messages() {
         "",
         Vec::new(),
         false,
-        vec![]
+        vec![],
+        Default::default()
     ).await;
 
     let mut agent = match result_agent {
@@ -176,6 +182,7 @@ async fn test_factory_from_config_propagates_yolo() {
         model: "gemini-2.5-flash-lite".to_string(),
         api_key: api_key.clone(),
         tools: vec![],
+        tools_config: Default::default()
     };
 
     fs::write(&config_path, serde_json::to_string_pretty(&config_json).unwrap()).unwrap();

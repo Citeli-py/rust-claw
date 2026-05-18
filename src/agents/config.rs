@@ -6,12 +6,34 @@ use std::path::Path;
 use crate::agents::provider::ModelProvider;
 
 #[derive(Serialize, Deserialize)]
+pub struct WebBrowserConfig {
+    #[serde(default = "default_headless")]
+    pub headless: bool,
+}
+
+impl Default for WebBrowserConfig {
+    fn default() -> Self {
+        Self { headless: default_headless() }
+    }
+}
+
+fn default_headless() -> bool { true }
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct ToolsConfig {
+    #[serde(default)]
+    pub web_browser: WebBrowserConfig,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct AgentConfigJson {
     pub provider: String,
     pub model: String,
     pub api_key: String,
     #[serde(default = "default_tools")]
     pub tools: Vec<String>,
+    #[serde(default)]
+    pub tools_config: ToolsConfig,
 }
 
 fn default_tools() -> Vec<String> {
@@ -26,6 +48,7 @@ pub struct AgentConfig {
     pub pre_prompt: String,
     pub yolo: bool,
     pub tools: Vec<String>,
+    pub tools_config: ToolsConfig,
 }
 
 impl AgentConfig {
@@ -66,6 +89,7 @@ impl AgentConfig {
             pre_prompt: pre_prompt,
             yolo: false,
             tools: config.tools,
+            tools_config: config.tools_config,
         };
 
         Ok(agent_config)
