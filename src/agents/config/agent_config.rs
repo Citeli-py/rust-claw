@@ -35,17 +35,30 @@ pub struct AgentConfig {
 
 impl AgentConfig {
 
-    pub fn match_provider(provider_str: &str) -> Option<ModelProvider> {
-        match provider_str.to_lowercase().as_str() {
-            "gemini" => Some(ModelProvider::Gemini),
-            "ollama" => Some(ModelProvider::Ollama),
-            "groq" => Some(ModelProvider::Groq),
-            "openrouter" => Some(ModelProvider::OpenRouter),
-            _ => None,
-        }
+    pub fn from_path(path: &str) -> Result<AgentConfig> {
+        let config = Self::get_config(path)?;
+        let pre_prompt = Self::get_pre_prompt(path)?;
+        let name = Self::get_name(path)?;
+
+        let agent_config = AgentConfig{
+            name,
+            provider: ModelProvider::from_str(&config.provider).unwrap(),
+            model: config.model,
+            api_key: config.api_key,
+            pre_prompt: pre_prompt,
+            yolo: false,
+            tools: config.tools,
+            tools_config: config.tools_config,
+        };
+
+        Ok(agent_config)
     }
 
-    fn get_config(path: &str) -> Result<AgentConfigJson> {
+    pub fn to_string(&self) -> String {
+        String::from(format!("{}\n\tprovider: {}\n\tmodel: {}\n", self.name, self.provider.to_string(), self.model))
+    }
+
+        fn get_config(path: &str) -> Result<AgentConfigJson> {
         let config_path = format!("{}/config.json", path);
         let content = fs::read_to_string(&config_path)
             .with_context(|| format!("Erro ao ler arquivo: {}", config_path))?;
@@ -72,28 +85,5 @@ impl AgentConfig {
         .to_string();
 
         Ok(name)
-    }
-
-    pub fn from_path(path: &str) -> Result<AgentConfig> {
-        let config = Self::get_config(path)?;
-        let pre_prompt = Self::get_pre_prompt(path)?;
-        let name = Self::get_name(path)?;
-
-        let agent_config = AgentConfig{
-            name,
-            provider: AgentConfig::match_provider(&config.provider).unwrap(),
-            model: config.model,
-            api_key: config.api_key,
-            pre_prompt: pre_prompt,
-            yolo: false,
-            tools: config.tools,
-            tools_config: config.tools_config,
-        };
-
-        Ok(agent_config)
-    }
-
-    pub fn to_string(&self) -> String {
-        String::from(format!("{}\n\tprovider: {}\n\tmodel: {}\n", self.name, self.provider.to_string(), self.model))
     }
 }
