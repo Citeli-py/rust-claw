@@ -14,4 +14,14 @@ impl ModelProvider {
             ModelProvider::OpenRouter => "openrouter".to_string(),
         }
     }
+
+    pub fn from_str(provider_str: &str) -> Option<ModelProvider> {
+        match provider_str.to_lowercase().as_str() {
+            "gemini" => Some(ModelProvider::Gemini),
+            "ollama" => Some(ModelProvider::Ollama),
+            "groq" => Some(ModelProvider::Groq),
+            "openrouter" => Some(ModelProvider::OpenRouter),
+            _ => None,
+        }
+    }
 }
