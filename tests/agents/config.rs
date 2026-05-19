@@ -1,14 +1,16 @@
 use ai_agent::AgentConfig;
+use ai_agent::ModelProvider;
+
 use std::fs;
 use tempfile::TempDir;
 
 #[test]
 fn test_match_provider_invalid_returns_none() {
-    assert!(AgentConfig::match_provider("").is_none());
-    assert!(AgentConfig::match_provider("unknown").is_none());
-    assert!(AgentConfig::match_provider("openai").is_none());
-    assert!(AgentConfig::match_provider("azure").is_none());
-    assert!(AgentConfig::match_provider("123").is_none());
+    assert!(ModelProvider::from_str("").is_none());
+    assert!(ModelProvider::from_str("unknown").is_none());
+    assert!(ModelProvider::from_str("openai").is_none());
+    assert!(ModelProvider::from_str("azure").is_none());
+    assert!(ModelProvider::from_str("123").is_none());
 }
 
 #[test]
