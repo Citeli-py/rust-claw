@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{Write, stdin, stdout};
 use crate::{AgentConfig, AgentConfigJson};
+use crate::agents::ModelProvider;
 
 fn create_files(base_path: &str) {
     // PROMPT.md
@@ -56,7 +57,7 @@ pub fn create_agent(name: &str) {
         .expect("Erro ao criar diretório");
 
     // pergunta config
-    let provider = AgentConfig::match_provider(
+    let provider = ModelProvider::from_str(
         &ask("Provider (gemini/ollama/openrouter/groq): ")
     ).unwrap();
 
