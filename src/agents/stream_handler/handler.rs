@@ -22,7 +22,14 @@ impl StreamHandler {
         let mut reasoning_text = String::new();
 
         while let Some(chunk) = stream.next().await {
-            let chunk = chunk.unwrap();
+
+            let chunk = match chunk {
+                Ok(stream_item) => stream_item,
+                Err(error) => {
+                    eprintln!("Streaming Error:\n{error}");
+                    break;
+                }
+            };
 
             match chunk {
                 rig::agent::MultiTurnStreamItem::StreamAssistantItem(item) => {
