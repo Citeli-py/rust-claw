@@ -3,7 +3,7 @@ use anyhow::{Result, Context};
 use std::fs;
 use std::path::Path;
 
-use crate::agents::provider::ModelProvider;
+use crate::provider::ModelProvider;
 use crate::agents::config::ToolsConfig;
 
 

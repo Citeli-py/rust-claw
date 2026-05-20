@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{Write, stdin, stdout};
 use crate::{AgentConfig, AgentConfigJson};
-use crate::agents::ModelProvider;
+use crate::provider::ModelProvider;
 
 fn create_files(base_path: &str) {
     // PROMPT.md
