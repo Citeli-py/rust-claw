@@ -6,7 +6,7 @@ use crate::AgentConfig;
 use crate::agents::builder::build_agent;
 use crate::agents::config::ToolsConfig;
 use crate::agents::interface::AgentInterface;
-use crate::agents::provider::ModelProvider;
+use crate::provider::ModelProvider;
 
 
 pub struct AgentFactory {}
