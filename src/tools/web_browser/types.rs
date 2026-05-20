@@ -1,90 +1,95 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum ElementType {
-    Button,
-    Input,
-    TextArea,
-    Link,
-    Select,
-    Checkbox,
-    Radio,
-    Other,
-}
+pub const CLICKABLE_SELECTOR: &str = concat!(
+    "button, a[href], input[type='button'], input[type='submit'], ",
+    "[role='button'], [role='link'], [role='tab'], [role='menuitem'], ",
+    "[role='option'], [onclick], ",
+    "input[type='checkbox'], input[type='radio'], ",
+    "[tabindex]:not([tabindex='-1'])"
+);
+
+pub const FILLABLE_SELECTOR: &str = concat!(
+    "input:not([type='checkbox']):not([type='radio']):not([type='button']):not([type='submit']):not([type='reset']):not([type='image']):not([type='file']), ",
+    "textarea, select"
+);
+
+pub const BATCH_SCRIPT: &str = r#"
+    var elems = arguments[0];
+    var results = [];
+    for (var i = 0; i < elems.length; i++) {
+        var e = elems[i];
+        var rect = e.getBoundingClientRect();
+        var style = window.getComputedStyle(e);
+        var displayed = style.display !== 'none'
+            && style.visibility !== 'hidden'
+            && style.opacity !== '0'
+            && rect.width > 0 && rect.height > 0;
+        results.push({
+            tag:        e.tagName.toLowerCase(),
+            text:       (e.textContent || '').trim().slice(0, 200),
+            href:       e.getAttribute('href'),
+            label:      e.getAttribute('aria-label') || e.getAttribute('placeholder'),
+            name:       e.getAttribute('name'),
+            input_type: e.getAttribute('type'),
+            id:         e.getAttribute('id'),
+            class:      e.getAttribute('class'),
+            displayed:  displayed
+        });
+    }
+    return results;
+"#;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BoundingRect {
-    pub x: f64,
-    pub y: f64,
-    pub width: f64,
-    pub height: f64,
+#[serde(tag = "type")]
+pub enum Element {
+    Button   { index: usize, selector: String, text: String },
+    Link     { index: usize, selector: String, text: String, href: Option<String> },
+    Input    { index: usize, selector: String, label: Option<String> },
+    Textarea { index: usize, selector: String, label: Option<String> },
+    Select   { index: usize, selector: String, label: Option<String> },
+    Checkbox { index: usize, selector: String, label: Option<String>, name: Option<String> },
+    Radio    { index: usize, selector: String, label: Option<String>, name: Option<String> },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ElementInfo {
-    pub element_json: String,
-    pub index: usize,
-    pub tag_name: String,
-    pub text: String,
-    pub css_selector: String,
-    pub attributes: HashMap<String, String>,
-    pub element_type: ElementType,
-    pub role: Option<String>,
-    pub is_clickable: bool,
-    pub is_fillable: bool,
-    pub is_displayed: bool,
-    pub bounding_box: Option<BoundingRect>,
-}
-
-pub fn classify_element(tag_name: &str, attributes: &HashMap<String, String>) -> ElementType {
-    match tag_name.to_lowercase().as_str() {
-        "button" => ElementType::Button,
-        "a" => ElementType::Link,
-        "textarea" => ElementType::TextArea,
-        "select" => ElementType::Select,
-        "input" => {
-            match attributes.get("type").map(|s| s.as_str()) {
-                Some("checkbox") => ElementType::Checkbox,
-                Some("radio") => ElementType::Radio,
-                Some("button") | Some("submit") => ElementType::Button,
-                _ => ElementType::Input,
+impl Element {
+    pub fn to_llm_str(&self) -> String {
+        match self {
+            Element::Button { index, selector, text } =>
+                format!("[{index}] Button   | {text} | {selector}"),
+            Element::Link { index, selector, text, href } => {
+                let dest = href.as_deref().map(|h| format!(" -> {h}")).unwrap_or_default();
+                format!("[{index}] Link     | {text} | {selector}{dest}")
+            }
+            Element::Input { index, selector, label } =>
+                format!("[{index}] Input    | {} | {selector}", label.as_deref().unwrap_or("")),
+            Element::Textarea { index, selector, label } =>
+                format!("[{index}] Textarea | {} | {selector}", label.as_deref().unwrap_or("")),
+            Element::Select { index, selector, label } =>
+                format!("[{index}] Select   | {} | {selector}", label.as_deref().unwrap_or("")),
+            Element::Checkbox { index, selector, label, name } => {
+                let grp = name.as_deref().map(|n| format!(" (name={n})")).unwrap_or_default();
+                format!("[{index}] Checkbox | {} | {selector}{grp}", label.as_deref().unwrap_or(""))
+            }
+            Element::Radio { index, selector, label, name } => {
+                let grp = name.as_deref().map(|n| format!(" (name={n})")).unwrap_or_default();
+                format!("[{index}] Radio    | {} | {selector}{grp}", label.as_deref().unwrap_or(""))
             }
         }
-        _ => ElementType::Other,
     }
 }
 
-pub fn is_fillable_element(tag_name: &str, attributes: &HashMap<String, String>) -> bool {
-    match tag_name.to_lowercase().as_str() {
-        "input" => {
-            let input_type = attributes.get("type").map(|s| s.as_str()).unwrap_or("text");
-            !matches!(input_type, "checkbox" | "radio" | "button" | "submit" | "reset" | "image" | "file")
-        }
-        "textarea" | "select" => true,
-        _ => false,
+pub fn generate_css_selector(tag: &str, id: Option<&str>, class: Option<&str>, name: Option<&str>, index: usize) -> String {
+    if let Some(id) = id.filter(|s| !s.is_empty() && !s.contains(char::is_whitespace)) {
+        return format!("#{id}");
     }
-}
-
-pub fn generate_css_selector(tag_name: &str, attributes: &HashMap<String, String>, index: usize) -> String {
-    if let Some(id) = attributes.get("id") {
-        if !id.is_empty() && !id.contains(char::is_whitespace) {
-            return format!("#{}", id);
+    if let Some(cls) = class {
+        let classes: Vec<&str> = cls.split_whitespace().collect();
+        if !classes.is_empty() {
+            return format!("{tag}.{}", classes.join("."));
         }
     }
-    let classes = attributes.get("class").map(|c| {
-        let clean: Vec<&str> = c.split_whitespace().collect();
-        clean.join(".")
-    });
-    if let Some(cls) = classes {
-        if !cls.is_empty() {
-            return format!("{}.{}", tag_name, cls);
-        }
+    if let Some(name) = name.filter(|s| !s.is_empty()) {
+        return format!("{tag}[name='{name}']");
     }
-    if let Some(name) = attributes.get("name") {
-        if !name.is_empty() {
-            return format!("{}[name='{}']", tag_name, name);
-        }
-    }
-    format!("{}:nth-of-type({})", tag_name, index + 1)
+    format!("{tag}:nth-of-type({})", index + 1)
 }
