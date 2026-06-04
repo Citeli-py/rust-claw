@@ -8,3 +8,6 @@ mod web_driver;
 
 #[path = "tools/web_browser_tool.rs"]
 mod web_browser_tool;
+
+#[path = "tools/trusted_commands.rs"]
+mod trusted_commands;

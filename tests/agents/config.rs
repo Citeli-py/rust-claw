@@ -1,4 +1,4 @@
-use ai_agent::AgentConfig;
+use ai_agent::config::AgentConfig;
 use ai_agent::ModelProvider;
 
 use std::fs;
@@ -19,7 +19,6 @@ fn test_agent_config_with_tools() {
     let config_path = temp_dir.path().join("config.json");
     let prompt_path = temp_dir.path().join("PROMPT.md");
 
-    // Cria config.json com tools especificadas
     let config_content = r#"{
         "provider": "gemini",
         "model": "gemini-pro",
@@ -27,16 +26,12 @@ fn test_agent_config_with_tools() {
         "tools": ["terminal"]
     }"#;
     fs::write(&config_path, config_content).unwrap();
-
-    // Cria PROMPT.md necessário
     fs::write(&prompt_path, "# Test Agent").unwrap();
 
-    // Carrega config
     let config = AgentConfig::from_path(temp_dir.path().to_str().unwrap()).unwrap();
 
-    // Verifica se tools foi carregado corretamente
-    assert_eq!(config.tools.len(), 1);
-    assert_eq!(config.tools[0], "terminal");
+    assert_eq!(config.tools_config.tools.len(), 1);
+    assert_eq!(config.tools_config.tools[0].name(), "terminal");
     assert!(!config.yolo);
 }
 
@@ -46,23 +41,17 @@ fn test_agent_config_without_tools_uses_default() {
     let config_path = temp_dir.path().join("config.json");
     let prompt_path = temp_dir.path().join("PROMPT.md");
 
-    // Cria config.json SEM o campo tools
     let config_content = r#"{
         "provider": "gemini",
         "model": "gemini-pro",
         "api_key": "test-key"
     }"#;
     fs::write(&config_path, config_content).unwrap();
-
-    // Cria PROMPT.md necessário
     fs::write(&prompt_path, "# Test Agent").unwrap();
 
-    // Carrega config
     let config = AgentConfig::from_path(temp_dir.path().to_str().unwrap()).unwrap();
 
-    // Verifica se usou o default (["terminal"])
-    assert_eq!(config.tools.len(), 1);
-    assert_eq!(config.tools[0], "terminal");
+    assert!(config.tools_config.tools.is_empty());
 }
 
 #[test]
@@ -71,26 +60,20 @@ fn test_agent_config_with_multiple_tools() {
     let config_path = temp_dir.path().join("config.json");
     let prompt_path = temp_dir.path().join("PROMPT.md");
 
-    // Cria config.json com múltiplas tools
     let config_content = r#"{
         "provider": "gemini",
         "model": "gemini-pro",
         "api_key": "test-key",
-        "tools": ["terminal", "browser", "file"]
+        "tools": ["terminal", "web_browser"]
     }"#;
     fs::write(&config_path, config_content).unwrap();
-
-    // Cria PROMPT.md necessário
     fs::write(&prompt_path, "# Test Agent").unwrap();
 
-    // Carrega config
     let config = AgentConfig::from_path(temp_dir.path().to_str().unwrap()).unwrap();
 
-    // Verifica se todas as tools foram carregadas
-    assert_eq!(config.tools.len(), 3);
-    assert_eq!(config.tools[0], "terminal");
-    assert_eq!(config.tools[1], "browser");
-    assert_eq!(config.tools[2], "file");
+    assert_eq!(config.tools_config.tools.len(), 2);
+    assert_eq!(config.tools_config.tools[0].name(), "terminal");
+    assert_eq!(config.tools_config.tools[1].name(), "web_browser");
 }
 
 #[test]
@@ -99,7 +82,6 @@ fn test_agent_config_empty_tools_array() {
     let config_path = temp_dir.path().join("config.json");
     let prompt_path = temp_dir.path().join("PROMPT.md");
 
-    // Cria config.json com tools vazio
     let config_content = r#"{
         "provider": "gemini",
         "model": "gemini-pro",
@@ -107,15 +89,36 @@ fn test_agent_config_empty_tools_array() {
         "tools": []
     }"#;
     fs::write(&config_path, config_content).unwrap();
-
-    // Cria PROMPT.md necessário
     fs::write(&prompt_path, "# Test Agent").unwrap();
 
-    // Carrega config
     let config = AgentConfig::from_path(temp_dir.path().to_str().unwrap()).unwrap();
 
-    // Verifica se tools está vazio
-    assert!(config.tools.is_empty());
+    assert!(config.tools_config.tools.is_empty());
+}
+
+#[test]
+fn test_agent_config_trusted_commands_loaded() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_path = temp_dir.path().join("config.json");
+    let prompt_path = temp_dir.path().join("PROMPT.md");
+
+    let config_content = r#"{
+        "provider": "gemini",
+        "model": "gemini-pro",
+        "api_key": "test-key",
+        "tools": ["terminal"],
+        "tools_trusted_commands": {
+            "terminal": ["{\"command\":\"free -h\"}"]
+        }
+    }"#;
+    fs::write(&config_path, config_content).unwrap();
+    fs::write(&prompt_path, "# Test Agent").unwrap();
+
+    let config = AgentConfig::from_path(temp_dir.path().to_str().unwrap()).unwrap();
+
+    let terminal = &config.tools_config.tools[0];
+    assert_eq!(terminal.name(), "terminal");
+    assert_eq!(terminal.trusted_commands().len(), 1);
 }
 
 #[test]
@@ -124,7 +127,6 @@ fn test_from_path_invalid_json_errors() {
     let config_path = temp_dir.path().join("config.json");
     let prompt_path = temp_dir.path().join("PROMPT.md");
 
-    // Cria config.json com JSON malformado
     fs::write(&config_path, "{ provider: broken, }").unwrap();
     fs::write(&prompt_path, "# Test").unwrap();
 
@@ -137,7 +139,6 @@ fn test_from_path_missing_prompt_errors() {
     let temp_dir = TempDir::new().unwrap();
     let config_path = temp_dir.path().join("config.json");
 
-    // Cria config.json válido mas NÃO cria PROMPT.md
     let config_content = r#"{
         "provider": "gemini",
         "model": "gemini-pro",

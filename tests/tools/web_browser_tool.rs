@@ -1,3 +1,5 @@
+use ai_agent::config::WebBrowserConfig;
+use ai_agent::tools::confirmed_tool::ConfirmationMode;
 use ai_agent::tools::WebDriverHandlerInterface;
 use ai_agent::tools::web_browser::{Element, WebBrowserTool, BrowserAction, WebBrowserArgs};
 use async_trait::async_trait;
@@ -261,6 +263,51 @@ mod action_fill_by_selector {
             text: None,
         };
         assert!(tool.call(args).await.is_err());
+    }
+}
+
+mod build {
+    use super::*;
+
+    fn cfg(trusted: Vec<&str>, headless: bool) -> WebBrowserConfig {
+        WebBrowserConfig {
+            headless,
+            trusted: trusted.iter().map(|s| s.to_string()).collect(),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_build_sets_tool_name() {
+        let tool = WebBrowserTool::build(cfg(vec![], true), ConfirmationMode::AlwaysAllow, None).await;
+        assert_eq!(tool.tool_name, "web_browser");
+    }
+
+    #[tokio::test]
+    async fn test_build_always_deny_blocks_action() {
+        let tool = WebBrowserTool::build(cfg(vec![], true), ConfirmationMode::AlwaysDeny, None).await;
+        let result = tool.call(WebBrowserArgs {
+            action: BrowserAction::GetPageText,
+            url: None,
+            css_selector: None,
+            text: None,
+        }).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("blocked"));
+    }
+
+    #[tokio::test]
+    async fn test_build_trusted_action_bypasses_confirmation() {
+        let trusted_json = r#"{"action":"get_page_text"}"#;
+        let tool = WebBrowserTool::build(cfg(vec![trusted_json], true), ConfirmationMode::Ask, None).await;
+        let result = tool.call(WebBrowserArgs {
+            action: BrowserAction::GetPageText,
+            url: None,
+            css_selector: None,
+            text: None,
+        }).await;
+        // Vai falhar na execução real (sem driver), mas não deve ser bloqueado pelo trusted check
+        assert!(result.is_err());
+        assert!(!result.unwrap_err().to_string().contains("blocked"));
     }
 }
 
