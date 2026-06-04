@@ -1,7 +1,9 @@
 use ai_agent::tools::confirmed_tool::{ConfirmedTool, ConfirmationMode, ConfirmedToolError};
+use ai_agent::tools::trusted_commands::TrustedCommands;
 use rig::tool::Tool;
 
 use serde::{Serialize, Deserialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct StringProcessorArgs {
@@ -55,7 +57,8 @@ impl Tool for StringProcessorTool {
 
 #[tokio::test]
 async fn test_wrapped_tool_must_show_their_description() {
-    let wrapped = ConfirmedTool::new(StringProcessorTool);
+    let trusted = TrustedCommands::new("string_processor", HashMap::new());
+    let wrapped = ConfirmedTool::new(StringProcessorTool, trusted);
 
     // 🔍 Verifica se definition ainda funciona
     let def = wrapped.definition("".to_string()).await;
@@ -72,7 +75,8 @@ async fn test_wrapped_tool_must_show_their_description() {
 
 #[tokio::test]
 async fn test_wrapped_tool_must_return_the_same_as_tool_in_success() {
-    let mut wrapped = ConfirmedTool::new(StringProcessorTool);
+    let trusted = TrustedCommands::new("string_processor", HashMap::new());
+    let mut wrapped = ConfirmedTool::new(StringProcessorTool, trusted);
     wrapped.set_mode(ConfirmationMode::AlwaysAllow);
 
     let args = serde_json::json!({
@@ -90,7 +94,8 @@ async fn test_wrapped_tool_must_return_the_same_as_tool_in_success() {
 
 #[tokio::test]
 async fn test_wrapped_tool_must_return_the_same_error_as_tool() {
-    let mut wrapped = ConfirmedTool::new(StringProcessorTool);
+    let trusted = TrustedCommands::new("string_processor", HashMap::new());
+    let mut wrapped = ConfirmedTool::new(StringProcessorTool, trusted);
     wrapped.set_mode(ConfirmationMode::AlwaysAllow);
 
     let args = serde_json::json!({
@@ -111,7 +116,8 @@ async fn test_wrapped_tool_must_return_the_same_error_as_tool() {
 
 #[tokio::test]
 async fn test_wrap_tool_confirmation_denied() {
-    let mut wrapped = ConfirmedTool::new(StringProcessorTool);
+    let trusted = TrustedCommands::new("string_processor", HashMap::new());
+    let mut wrapped = ConfirmedTool::new(StringProcessorTool, trusted);
     wrapped.set_mode(ConfirmationMode::AlwaysDeny);
 
     let args = StringProcessorArgs {

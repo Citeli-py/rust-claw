@@ -1,7 +1,9 @@
 use rig::tool::Tool;
 use rig::completion::ToolDefinition;
 use serde::{Deserialize, Serialize};
-use std::{io, io::Write};
+use std::io::{self, Write};
+
+use crate::tools::TrustedCommandsInterface;
 
 #[derive(Debug)]
 pub struct ConfirmedToolError {
@@ -23,28 +25,38 @@ pub enum ConfirmationMode {
     AlwaysDeny,   // útil pra testes e segurança
 }
 
-pub struct ConfirmedTool<T>
+enum ConfirmationDecision {
+    Allow,
+    Deny,
+    Trust,
+}
+
+pub struct ConfirmedTool<T, C>
 where
     T: Tool,
     T::Args: Serialize,
     T::Error: std::fmt::Display,
+    C: TrustedCommandsInterface,
 {
     inner: T,
     pub tool_name: String,
     pub mode: ConfirmationMode,
+    pub trusted_commands: C,
 }
 
-impl<T> ConfirmedTool<T>
+impl<T, C> ConfirmedTool<T, C>
 where
     T: Tool,
     T::Args: Serialize,
     T::Error: std::fmt::Display,
+    C: TrustedCommandsInterface,
 {
-    pub fn new(tool: T) -> Self {
+    pub fn new(tool: T, trusted_commands: C) -> Self {
         Self {
             tool_name: T::NAME.to_string(),
             inner: tool,
             mode: ConfirmationMode::Ask,
+            trusted_commands,
         }
     }
 
@@ -53,12 +65,13 @@ where
     }
 }
 
-impl<T> Tool for ConfirmedTool<T>
+impl<T, C> Tool for ConfirmedTool<T, C>
 where
     T: Tool + Send + Sync,
     T::Args: Serialize + for<'de> Deserialize<'de> + Send,
     T::Output: Serialize + for<'de> Deserialize<'de>,
     T::Error: std::fmt::Display + std::error::Error + Send + Sync + 'static,
+    C: TrustedCommandsInterface + Send + Sync,
 {
     const NAME: &'static str = T::NAME;
 
@@ -80,9 +93,20 @@ where
         let command = serde_json::to_string_pretty(&args)
             .unwrap_or("Unknown command".to_string());
 
-        if self.mode == ConfirmationMode::AlwaysAllow
-            || confirm_tool_use(&self.tool_name, &command)
-        {
+        let is_trusted = self.trusted_commands.is_trusted(&command);
+
+        let should_run = self.mode == ConfirmationMode::AlwaysAllow || is_trusted || {
+            match confirm_tool_use(&self.tool_name, &command) {
+                ConfirmationDecision::Allow => true,
+                ConfirmationDecision::Trust => {
+                    self.trusted_commands.trust_command(&command);
+                    true
+                }
+                ConfirmationDecision::Deny => false,
+            }
+        };
+
+        if should_run {
             return self.inner.call(args).await.map_err(|e| ConfirmedToolError {
                 message: e.to_string(),
             });
@@ -94,20 +118,25 @@ where
     }
 }
 
-pub fn confirm_tool_use(tool: &str, command: &str) -> bool {
+fn confirm_tool_use(tool: &str, command: &str) -> ConfirmationDecision {
     println!("\n🤖 Pensando...\n");
-
     println!("⚠️ O agente quer usar a ferramenta:\n");
     println!("Tool: {}", tool);
     println!("Comando: {}\n", command);
+    println!("[y] sim | [n] não | [t] sim e salvar como confiável");
 
-    println!("[y] sim | [n] não");
+    loop {
+        print!("> ");
+        io::stdout().flush().unwrap();
 
-    print!("> ");
-    io::stdout().flush().unwrap();
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).unwrap();
 
-    let mut input = String::new();
-    io::stdin().read_line(&mut input).unwrap();
-
-    matches!(input.trim(), "y")
+        match input.trim() {
+            "y" => return ConfirmationDecision::Allow,
+            "n" => return ConfirmationDecision::Deny,
+            "t" => return ConfirmationDecision::Trust,
+            _ => println!("Opção inválida. Use y, n ou t."),
+        }
+    }
 }
