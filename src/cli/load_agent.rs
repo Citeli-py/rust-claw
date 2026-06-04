@@ -1,4 +1,5 @@
-use crate::agents::{AgentInterface, AgentConfig};
+use crate::agents::AgentInterface;
+use crate::config::AgentConfig;
 use crate::AgentFactory;
 
 

@@ -1,72 +1,63 @@
-use rig::{agent::{Agent, AgentBuilder, PromptHook, WithBuilderTools}, completion::CompletionModel, message::Message};
+use rig::agent::{Agent, AgentBuilder, PromptHook, WithBuilderTools};
+use rig::completion::CompletionModel;
+use rig::message::Message;
 use rig::tool::Tool;
 
-use crate::agents::config::ToolsConfig;
+use crate::config::{AgentConfig, ToolConfig};
 use crate::agents::wrapper::AgentWrapper;
-use crate::tools::*;
-use crate::tools::confirmed_tool::{ConfirmedTool, ConfirmationMode};
+use crate::AgentInterface;
+use crate::tools::confirmed_tool::ConfirmationMode;
+use crate::tools::{TerminalTool, WebBrowserTool, WebDriverHandler};
 
 pub(super) async fn build_agent<M, P>(
-    builder: AgentBuilder<M, P>, 
-    pre_prompt: &str, 
-    history: Vec<Message>, 
-    yolo: bool, 
-    tools: Vec<String>, 
-    tools_config: ToolsConfig
-) -> Box<dyn crate::agents::interface::AgentInterface>
+    builder: AgentBuilder<M, P>,
+    config: AgentConfig,
+    history: Vec<Message>,
+) -> Box<dyn AgentInterface>
 where
     M: CompletionModel + Send + Sync + 'static,
     P: PromptHook<M> + Send + Sync + 'static,
 {
-
     let builder = builder
-    .preamble(pre_prompt)
-    .default_max_turns(20);
+        .preamble(&config.pre_prompt)
+        .default_max_turns(20);
 
-    let agent = build_with_tools(builder, tools, yolo, tools_config).await;
+    let agent = build_with_tools(builder, config).await;
 
     Box::new(AgentWrapper::new(agent, history))
 }
 
-pub(super) async fn build_with_tools<M, P>(
-    builder: AgentBuilder<M, P>, 
-    tools: Vec<String>, 
-    yolo: bool, 
-    tools_config: ToolsConfig
+async fn build_with_tools<M, P>(
+    builder: AgentBuilder<M, P>,
+    config: AgentConfig,
 ) -> Agent<M, P>
 where
     M: CompletionModel + Send + Sync + 'static,
     P: PromptHook<M> + Send + Sync + 'static,
 {
-
-    let confirmation_mode = if yolo {ConfirmationMode::AlwaysAllow} else {ConfirmationMode::Ask};
+    let mode = if config.yolo { ConfirmationMode::AlwaysAllow } else { ConfirmationMode::Ask };
+    let config_path = config.config_path.as_deref();
 
     let mut builder = Some(builder);
     let mut agent_builder_tool: Option<AgentBuilder<M, P, WithBuilderTools>> = None;
 
-    for tool_name in tools {
-        match tool_name.as_str() {
-            "terminal" => {
-                let mut tool = ConfirmedTool::new(TerminalTool);
-                tool.set_mode(confirmation_mode);
+    for tool_cfg in config.tools_config.tools {
+        match tool_cfg {
+            ToolConfig::Terminal(cfg) => {
+                let tool = TerminalTool::build(cfg, mode, config_path);
                 agent_builder_tool = apply_tool(&mut builder, agent_builder_tool, tool);
             }
-            "web_browser" => {
-                let headless = tools_config.web_browser.headless;
-                let web_driver = WebDriverHandler::new(headless).await.unwrap();
-                let mut tool = ConfirmedTool::new(WebBrowserTool::new(web_driver));
-                tool.set_mode(confirmation_mode);
+            ToolConfig::WebBrowser(cfg) => {
+                let tool = WebBrowserTool::<WebDriverHandler>::build(cfg, mode, config_path).await;
                 agent_builder_tool = apply_tool(&mut builder, agent_builder_tool, tool);
             }
-            _ => println!("Unknown tool: {}", tool_name),
         }
     }
 
     match agent_builder_tool {
-        Some(agent_builder) => agent_builder.build(),
+        Some(b) => b.build(),
         None => builder.unwrap().build(),
     }
-
 }
 
 fn apply_tool<M, P, T>(
@@ -80,10 +71,7 @@ where
     T: Tool + 'static,
 {
     Some(match agent_builder_tool {
-        Some(agent) => agent.tool(tool),
-        None => {
-            let b = builder.take().expect("builder já foi usado");
-            b.tool(tool)
-        }
+        Some(b) => b.tool(tool),
+        None => builder.take().expect("builder já foi usado").tool(tool),
     })
 }

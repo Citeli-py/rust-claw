@@ -1,4 +1,4 @@
-use crate::AgentConfig;
+use crate::config::AgentConfig;
 use std::fs;
 
 pub fn list_agents() {
