@@ -4,6 +4,11 @@ use rig::tool::Tool;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
+use crate::config::WebBrowserConfig;
+use crate::tools::confirmed_tool::{ConfirmationMode, ConfirmedTool};
+use std::collections::HashMap;
+use crate::tools::TrustedCommands;
+use crate::tools::WebDriverHandler;
 use crate::tools::web_browser::WebDriverHandlerInterface;
 use crate::tools::web_browser::types::Element;
 
@@ -62,6 +67,23 @@ pub struct WebBrowserTool<D: WebDriverHandlerInterface> {
 impl<D: WebDriverHandlerInterface> WebBrowserTool<D> {
     pub fn new(web_driver: D) -> Self {
         Self { web_driver }
+    }
+}
+
+impl WebBrowserTool<WebDriverHandler> {
+    pub async fn build(
+        cfg: WebBrowserConfig,
+        mode: ConfirmationMode,
+        config_path: Option<&str>,
+    ) -> ConfirmedTool<WebBrowserTool<WebDriverHandler>, TrustedCommands> {
+        let trusted = TrustedCommands::new("web_browser", HashMap::from([
+            ("web_browser".to_string(), cfg.trusted),
+        ])).with_config_path_opt(config_path);
+
+        let web_driver = WebDriverHandler::new(cfg.headless).await.unwrap();
+        let mut tool = ConfirmedTool::new(WebBrowserTool::new(web_driver), trusted);
+        tool.set_mode(mode);
+        tool
     }
 }
 

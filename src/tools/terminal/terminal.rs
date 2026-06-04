@@ -5,7 +5,7 @@ use rig::tool::Tool;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use std::process::Command;
+use std::{collections::HashMap, process::Command};
 
 #[derive(Debug)]
 pub struct TerminalError;
@@ -23,7 +23,7 @@ pub struct TerminalArgs {
     pub command: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TerminalOutput {
     pub stdout: String,
     pub stderr: String,
@@ -67,5 +67,24 @@ impl Tool for TerminalTool {
             stdout: String::from_utf8_lossy(&output.stdout).to_string(),
             stderr: String::from_utf8_lossy(&output.stderr).to_string(),
         })
+    }
+}
+
+use crate::config::TerminalConfig;
+use crate::tools::{TrustedCommands, confirmed_tool::{ConfirmationMode, ConfirmedTool}};
+
+impl TerminalTool {
+    pub fn build(
+        cfg: TerminalConfig,
+        mode: ConfirmationMode,
+        config_path: Option<&str>,
+    ) -> ConfirmedTool<TerminalTool, TrustedCommands> {
+        let trusted = TrustedCommands::new("terminal", HashMap::from([
+            ("terminal".to_string(), cfg.trusted),
+        ])).with_config_path_opt(config_path);
+
+        let mut tool = ConfirmedTool::new(TerminalTool, trusted);
+        tool.set_mode(mode);
+        tool
     }
 }
