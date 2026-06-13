@@ -1,21 +1,22 @@
 use std::collections::HashMap;
 use serde_json::Value;
+use std::sync::Mutex;
 
 pub trait TrustedCommandsInterface: Send + Sync {
     fn is_trusted(&self, command: &str) -> bool;
-    fn trust_command(&self, command: &str);
+    fn trust_command(&self, command: &str, save: bool);
 }
 
 pub struct TrustedCommands {
     tool_name: String,
-    commands: Vec<String>,
+    commands: Mutex<Vec<String>>,
     config_path: Option<String>,
 }
 
 impl TrustedCommands {
     pub fn new(tool_name: &str, trusted: HashMap<String, Vec<String>>) -> Self {
         TrustedCommands {
-            commands: trusted.get(tool_name).unwrap_or(&Vec::new()).to_vec(),
+            commands: Mutex::new(trusted.get(tool_name).unwrap_or(&Vec::new()).to_vec()),
             tool_name: tool_name.to_string(),
             config_path: None,
         }
@@ -30,21 +31,8 @@ impl TrustedCommands {
         self.config_path = path.map(|p| p.to_string());
         self
     }
-}
 
-impl TrustedCommandsInterface for TrustedCommands {
-    fn is_trusted(&self, command: &str) -> bool {
-        let normalized = normalize(command);
-        self.commands.iter().any(|c| normalize(c) == normalized)
-    }
-
-    fn trust_command(&self, command: &str) {
-        let Some(config_path) = &self.config_path else {
-            return;
-        };
-
-        let normalized = normalize(command);
-
+    fn save_trust_command(&self, command: String, config_path: &String) {
         let content = std::fs::read_to_string(config_path).unwrap_or_default();
         let mut json: Value = serde_json::from_str(&content).unwrap_or(Value::Object(Default::default()));
 
@@ -62,14 +50,36 @@ impl TrustedCommandsInterface for TrustedCommands {
                 .or_insert(Value::Array(vec![]));
 
             if let Some(arr) = entry.as_array_mut() {
-                if !arr.iter().any(|v| v.as_str() == Some(&normalized)) {
-                    arr.push(Value::String(normalized));
+                if !arr.iter().any(|v| v.as_str() == Some(&command)) {
+                    arr.push(Value::String(command));
                 }
             }
         }
 
         let pretty = serde_json::to_string_pretty(&json).unwrap_or(content);
         let _ = std::fs::write(config_path, pretty);
+    }
+
+}
+
+impl TrustedCommandsInterface for TrustedCommands {
+    fn is_trusted(&self, command: &str) -> bool {
+        let normalized = normalize(command);
+        self.commands.lock().unwrap().iter().any(|c| normalize(c) == normalized)
+    }
+
+    fn trust_command(&self, command: &str, save: bool) {
+
+        let normalized = normalize(command);
+        self.commands.lock().unwrap().push(normalized.clone());
+
+        let Some(config_path) = &self.config_path else {
+            return;
+        };
+
+        if save {
+            self.save_trust_command(normalized, config_path);
+        }
     }
 }
 

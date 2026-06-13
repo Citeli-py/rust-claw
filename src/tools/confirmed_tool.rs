@@ -29,6 +29,7 @@ enum ConfirmationDecision {
     Allow,
     Deny,
     Trust,
+    TrustSession,
 }
 
 pub struct ConfirmedTool<T, C>
@@ -99,9 +100,13 @@ where
             match confirm_tool_use(&self.tool_name, &command) {
                 ConfirmationDecision::Allow => true,
                 ConfirmationDecision::Trust => {
-                    self.trusted_commands.trust_command(&command);
+                    self.trusted_commands.trust_command(&command, true);
                     true
-                }
+                },
+                ConfirmationDecision::TrustSession => {
+                    self.trusted_commands.trust_command(&command, false);
+                    true
+                },
                 ConfirmationDecision::Deny => false,
             }
         };
@@ -119,11 +124,11 @@ where
 }
 
 fn confirm_tool_use(tool: &str, command: &str) -> ConfirmationDecision {
-    println!("\n🤖 Pensando...\n");
-    println!("⚠️ O agente quer usar a ferramenta:\n");
+    println!("\nThinking...\n");
+    println!("The agent wants to use a tool:\n");
     println!("Tool: {}", tool);
-    println!("Comando: {}\n", command);
-    println!("[y] sim | [n] não | [t] sim e salvar como confiável");
+    println!("Command: {}\n", command);
+    println!("[y] yes | [n] no | [t] trust in this session | [s] trust and save");
 
     loop {
         print!("> ");
@@ -135,7 +140,8 @@ fn confirm_tool_use(tool: &str, command: &str) -> ConfirmationDecision {
         match input.trim() {
             "y" => return ConfirmationDecision::Allow,
             "n" => return ConfirmationDecision::Deny,
-            "t" => return ConfirmationDecision::Trust,
+            "t" => return ConfirmationDecision::TrustSession,
+            "s" => return  ConfirmationDecision::Trust,
             _ => println!("Opção inválida. Use y, n ou t."),
         }
     }
